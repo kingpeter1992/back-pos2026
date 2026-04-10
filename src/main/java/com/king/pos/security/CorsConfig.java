@@ -17,7 +17,7 @@ public class CorsConfig  {
 	   public CorsConfigurationSource corsConfigurationSource() {
 	       CorsConfiguration configuration = new CorsConfiguration();
 	       configuration.setAllowedOrigins(List.of("http://localhost:4200","/api/produits/**/barcode-image",
-		   "https://peace-2026.vercel.app")); // Remplacez par l'origine de votre application Angular
+		   "https://pos-f03q8sk8o-kings-projects-3b05419b.vercel.app")); // Remplacez par l'origine de votre application Angular
 	       configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
 	       configuration.setAllowedHeaders(List.of("Authorization", "Content-Type"));
 	        configuration.setExposedHeaders(List.of("Content-Disposition")); // ✅ Exposer Content-Disposition
