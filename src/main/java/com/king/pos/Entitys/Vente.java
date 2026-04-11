@@ -7,6 +7,8 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.king.pos.enums.StatutVente;
+
 
 @Entity
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
@@ -25,6 +27,10 @@ public class Vente {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private ModePaiement modePaiement;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private StatutVente statut;
     
     private BigDecimal totalHT; //TotalHT
     private BigDecimal totalRemise; //TotalRemise

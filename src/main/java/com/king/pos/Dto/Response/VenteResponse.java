@@ -26,5 +26,6 @@ public class VenteResponse {
     private BigDecimal totalGeneral;
     private String devise;
     private Long tarifId;
+    private String statut;
     private List<VenteLigneResponse> lignes;
 }

@@ -21,6 +21,7 @@ import com.king.pos.Handllers.BusinessException;
 import com.king.pos.Handllers.ResourceNotFoundException;
 import com.king.pos.Interface.StockService;
 import com.king.pos.Interface.VenteService;
+import com.king.pos.enums.StatutVente;
 
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -49,6 +50,7 @@ public class VenteServiceImpl implements VenteService {
                 .totalHT(nvl(request.getSousTotal()))
                 .totalRemise(nvl(request.getTotalRemise()))
                 .totalTTC(BigDecimal.ZERO)
+               .statut(StatutVente.VALIDE)
                 .build();
 
         List<LigneVente> lignes = new ArrayList<>();
@@ -160,7 +162,7 @@ public class VenteServiceImpl implements VenteService {
                 .totalRemise(nvl(vente.getTotalRemise()))
                 .totalGeneral(nvl(vente.getTotalTTC()))
                 .devise(vente.getDevise() != null ? vente.getDevise() : "USD")
-                
+                .statut(vente.getStatut() != null ? vente.getStatut().name() : null)
                 .lignes(lignes)
                 .build();
     }
@@ -193,4 +195,34 @@ public class VenteServiceImpl implements VenteService {
         }
         return value.trim();
     }
+
+
+    @Override
+@Transactional
+public VenteResponse annulerVente(Long venteId) {
+    Vente vente = venteRepository.findById(venteId)
+            .orElseThrow(() -> new ResourceNotFoundException("Vente introuvable : " + venteId));
+
+    if (vente.getStatut() == StatutVente.ANNULEE) {
+        throw new BusinessException("Cette vente est déjà annulée.");
+    }
+
+    if (vente.getLignes() == null || vente.getLignes().isEmpty()) {
+        throw new BusinessException("Impossible d'annuler une vente sans lignes.");
+    }
+
+    for (LigneVente ligne : vente.getLignes()) {
+        stockService.ajouterStock(
+                ligne.getProduit().getId(),
+                ligne.getQuantite(),
+                "ANNULATION_VENTE_" + vente.getId(),
+                "Retour stock après annulation vente - Ticket " + vente.getTicketNumero()
+        );
+    }
+
+    vente.setStatut(StatutVente.ANNULEE);
+
+    Vente saved = venteRepository.save(vente);
+    return mapToResponse(saved);
+}
 }

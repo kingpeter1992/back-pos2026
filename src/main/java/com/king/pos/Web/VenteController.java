@@ -26,7 +26,10 @@ public class VenteController {
     public VenteResponse enregistrer(@RequestBody VenteRequest request) {
         return venteService.enregistrerVente(request);
     }
-
+        @PatchMapping("/{id}/annuler")
+        public VenteResponse annulerVente(@PathVariable Long id) {
+            return venteService.annulerVente(id);
+        }
     @GetMapping
     public List<VenteResponse> getAllVente() {
         return venteService.getAllVente();

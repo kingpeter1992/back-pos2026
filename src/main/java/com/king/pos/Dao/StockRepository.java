@@ -111,4 +111,14 @@ public interface StockRepository extends JpaRepository<StockProduit, Long> {
         group by sp.produit.id
     """)
     List<Object[]> findStockAndPmpByProduit();
+
+
+    @Query("""
+    select sp.produit.id,
+           coalesce(sum(sp.quantiteDisponible), 0),
+           coalesce(avg(sp.pmp), 0)
+    from StockProduit sp
+    group by sp.produit.id
+""")
+List<Object[]> findStockAndPmpByProduit1();
 }
