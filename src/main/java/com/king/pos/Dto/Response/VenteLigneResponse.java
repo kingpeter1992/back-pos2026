@@ -12,7 +12,7 @@ import lombok.*;
 public class VenteLigneResponse {
     private Long produitId;
     private String produitNom;
-    private Integer quantite;
+    private BigDecimal quantite;
     private BigDecimal prixUnitaire;
     private BigDecimal remise;
     private BigDecimal totalLigne;

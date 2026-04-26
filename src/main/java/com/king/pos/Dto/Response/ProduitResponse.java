@@ -11,7 +11,7 @@ import java.util.List;
 @Data
 @Builder
 public class ProduitResponse {
-    private Long id;
+   private Long id;
     private String codeBarres;
     private String nom;
     private String description;
@@ -21,9 +21,10 @@ public class ProduitResponse {
     private String fournisseurNom;
     private BigDecimal prixAchat;
     private BigDecimal prixVente;
-    private Integer stockMinimum;
-    private Integer stockMaximum;
+    private BigDecimal stockMinimum;
+    private BigDecimal stockMaximum;
     private Boolean actif;
+    private String perissable;
     private LocalDateTime dateCreation;
     private List<ImagePhotoResponse> images;
     private List<ProduitFournisseurResponse> fournisseurs;

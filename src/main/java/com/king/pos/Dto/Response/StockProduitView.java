@@ -1,34 +1,45 @@
 package com.king.pos.Dto.Response;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+
+
 
 @Data
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class StockProduitView {private Long stockId;
+public class StockProduitView {
+
+    private Long stockId;
     private Long produitId;
     private String nomProduit;
     private String codeBarre;
+    private Long categorieId;
     private String categorie;
     private Long depotId;
     private String nomDepot;
+
+    private Long locatorId;
+private String locatorCode;
 
     private BigDecimal quantiteDisponible;
     private BigDecimal pmp;
     private BigDecimal valeurStock;
 
-    private Integer stockMinimum;
-    private Integer stockMaximum;
+    private BigDecimal stockMaximum;
+    private BigDecimal stockMinimum;
 
     private String statutStock;
 
-    private LocalDateTime dateDerniereEntree;
-    private LocalDateTime dateDerniereSortie;
-    private LocalDateTime dateCreation;
-    private LocalDateTime dateModification;
+    // ===== TARIFICATION / MARGE =====
+    private Long tarifVenteId;
+    private String tarifCode;
+    private String tarifNom;
+
+    private BigDecimal tauxMarge;         // ex: 25
+    private BigDecimal margeUnitaire;     // ex: 250 si PMP=1000 et marge=25%
+    private BigDecimal prixVenteUnitaire; // ex: 1250
+    private BigDecimal margeTotaleStock;  // margeUnitaire * quantite
 }

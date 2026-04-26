@@ -12,8 +12,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.king.pos.Dto.CreateReceptionAchatRequest;
+import com.king.pos.Dto.ReceptionLocatorRequest;
 import com.king.pos.Dto.Response.DepotResponse;
 import com.king.pos.Dto.Response.ReceptionAchatResponse;
+import com.king.pos.Dto.Response.ReceptionLocatorPreparationResponse;
 import com.king.pos.ImplementServices.ReceptionAchatCreationService;
 import com.king.pos.Interface.DepotService;
 
@@ -32,18 +34,6 @@ public class ReceptionAchatController {
     public ResponseEntity<ReceptionAchatResponse> create(@RequestBody CreateReceptionAchatRequest request) {
         return ResponseEntity.ok(receptionAchatCreationService.create(request));
     }
-
-
-    @GetMapping("depots")
-    public ResponseEntity<List<DepotResponse>> getAllDepot() {
-        return ResponseEntity.ok(depotService.getAll());
-    }
-
-    @GetMapping("depots/{id}")
-    public ResponseEntity<DepotResponse> getByIdDepot(@PathVariable Long id) {
-        return ResponseEntity.ok(depotService.getById(id));
-    }
-
      @GetMapping
     public List<ReceptionAchatResponse> getAll() {
         return receptionAchatCreationService.getAll();
@@ -58,5 +48,15 @@ public class ReceptionAchatController {
     public List<ReceptionAchatResponse> findByCommande(@PathVariable Long commandeId) {
         return receptionAchatCreationService.findByCommande(commandeId);
     }
- 
+
+    @GetMapping("depots")
+    public ResponseEntity<List<DepotResponse>> getAllDepot() {
+        return ResponseEntity.ok(depotService.getAll());
+    }
+
+    @GetMapping("depots/{id}")
+    public ResponseEntity<DepotResponse> getByIdDepot(@PathVariable Long id) {
+        return ResponseEntity.ok(depotService.getById(id));
+    }
+
 }

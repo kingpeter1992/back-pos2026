@@ -8,7 +8,7 @@ import org.springframework.web.bind.annotation.*;
 import com.king.pos.Dto.ProduitRequest;
 import com.king.pos.Dto.Response.ProduitResponse;
 import com.king.pos.ImplementServices.BarcodeServiceImpl;
-import com.king.pos.Interface.ProduitService;
+import com.king.pos.ImplementServices.ProduitServiceImpl;
 
 import java.util.List;
 
@@ -18,7 +18,7 @@ import java.util.List;
 @CrossOrigin("*")
 public class ProduitController {
 
-    private final ProduitService produitService;
+    private final ProduitServiceImpl produitService;
     private  final  BarcodeServiceImpl barcodeService;
 
     @PostMapping

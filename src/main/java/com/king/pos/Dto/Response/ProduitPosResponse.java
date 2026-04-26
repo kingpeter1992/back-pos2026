@@ -19,8 +19,8 @@ public class ProduitPosResponse {
     private Boolean actif;
     private String categorie;
     private  BigDecimal prixAchat;
-    private Integer stockMinimum;
-    private Integer stockMaximum;
+    private BigDecimal stockMinimum;
+    private BigDecimal stockMaximum;
     private LocalDate dateCreation;
     private String fournisseurNom;
      

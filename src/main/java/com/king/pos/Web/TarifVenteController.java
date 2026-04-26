@@ -11,7 +11,7 @@ import com.king.pos.Dto.TarificationProduitRequest;
 import com.king.pos.Dto.Response.TarifCategorieProduitResponse;
 import com.king.pos.Dto.Response.TarifVenteResponse;
 import com.king.pos.Dto.Response.TarificationResponse;
-import com.king.pos.Interface.TarifVenteService;
+import com.king.pos.ImplementServices.TarifVenteServiceImpl;
 
 import java.util.List;
 
@@ -22,7 +22,7 @@ import java.util.List;
 @CrossOrigin("*")
 public class TarifVenteController {
 
-   private final TarifVenteService tarifVenteService;
+   private final TarifVenteServiceImpl tarifVenteService;
 
     /* =========================================================
        TARIFS DE VENTE
@@ -70,13 +70,6 @@ public class TarifVenteController {
 
     @PostMapping("/regles")
     public TarifCategorieProduitResponse createOrUpdateRegle(@RequestBody TarifCategorieProduitRequest request) {
-
-            System.out.println("Received request to create/update rule:");
-            System.out.println("TarifVenteId: " + request.getTarifVenteId());
-            System.out.println("CategorieProduitId: " + request.getCategorieId());
-            System.out.println("ModeArrondi: " + request.getModeArrondi());
-            System.out.println("Marge: " + request.getTauxMarge());
-            System.out.println("Remise: " + request.getTauxRemiseMax());
 
         return tarifVenteService.createOrUpdateRegle(request);
     }

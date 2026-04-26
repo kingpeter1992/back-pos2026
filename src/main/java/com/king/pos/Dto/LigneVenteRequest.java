@@ -8,7 +8,7 @@ import lombok.*;
 @Setter
 public class LigneVenteRequest {
     private Long produitId;
-    private Integer quantite;
+    private BigDecimal quantite;
     private BigDecimal prix;
     private BigDecimal remise;
     private BigDecimal total;

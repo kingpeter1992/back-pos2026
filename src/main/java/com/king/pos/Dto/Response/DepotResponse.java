@@ -9,4 +9,6 @@ public class DepotResponse {
     private String code;
     private String reference;
     private Boolean actif;
+        private Boolean parDefaut;
+
 }

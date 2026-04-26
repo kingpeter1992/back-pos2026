@@ -12,8 +12,7 @@ import java.util.List;
 @Setter @Getter @NoArgsConstructor @AllArgsConstructor @Builder
 @Table(name = "produit")
 public class Produit {
-
-     @Id
+ @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
@@ -37,13 +36,16 @@ public class Produit {
     private BigDecimal prixVente;
 
     @Column(name = "stock_minimum", nullable = false)
-    private Integer stockMinimum;
+    private BigDecimal stockMinimum;
 
-      @Column(name = "stock_maximum", nullable = false)
-    private Integer stockMaximum;
+    @Column(name = "stock_maximum", nullable = false)
+    private BigDecimal stockMaximum;
 
     @Column(nullable = false)
     private Boolean actif;
+
+    @Column(length = 20, nullable = false)
+    private String perissable;
 
     @Column(name = "date_creation", nullable = false)
     private LocalDateTime dateCreation;
@@ -58,9 +60,24 @@ public class Produit {
 
     @PrePersist
     public void prePersist() {
-        if (dateCreation == null) dateCreation = LocalDateTime.now();
-        if (actif == null) actif = true;
-        if (stockMinimum == null) stockMinimum = 0;
-        if (stockMaximum == null) stockMaximum = 0;
+        if (dateCreation == null) {
+            dateCreation = LocalDateTime.now();
+        }
+        if (actif == null) {
+            actif = true;
+        }
+        if (stockMinimum == null) {
+            stockMinimum = BigDecimal.ZERO;
+        }
+        if (stockMaximum == null) {
+            stockMaximum = BigDecimal.ZERO;
+        }
+        if (perissable == null || perissable.isBlank()) {
+            perissable = "NON";
+        }
+    }
+
+    public boolean isPerissable() {
+        return "OUI".equalsIgnoreCase(this.perissable);
     }
 }

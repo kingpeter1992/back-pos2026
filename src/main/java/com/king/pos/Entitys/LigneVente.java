@@ -24,7 +24,7 @@ public class LigneVente {
     private Produit produit;
 
     @Column(nullable = false)
-    private Integer quantite;
+    private BigDecimal quantite;
 
     @Column(precision = 12, scale = 2, nullable = false)
     private BigDecimal prixUnitaire;
@@ -59,4 +59,7 @@ public class LigneVente {
 
     @Column(precision = 18, scale = 6)
     private BigDecimal prixUnitaireVente;
+
+        @Column(precision = 18, scale = 2)
+    private BigDecimal tauxTva;
 }

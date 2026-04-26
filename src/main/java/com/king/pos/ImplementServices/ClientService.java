@@ -1,24 +1,18 @@
 package com.king.pos.ImplementServices;
 
-import java.security.Principal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.Comparator;
 import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.ThreadLocalRandom;
 
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestParam;
+
 
 import com.king.pos.Dao.ClientRepository;
 import com.king.pos.Dao.TransactionCaisseRepository;
 import com.king.pos.Dto.ClientDetailsDto;
 import com.king.pos.Dto.ClientDto;
 import com.king.pos.Dto.ClientStatsDto;
-import com.king.pos.Dto.ReponseDto;
 
 import com.king.pos.Dto.Response.TransactionMiniDto;
 import com.king.pos.Entitys.Client;

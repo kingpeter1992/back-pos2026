@@ -21,7 +21,7 @@ public class ProduitRequest {
     private String description;
     private Boolean actif;
 
-
+      private String perissable;
     private Long categorieId;
 
     @NotNull(message = "Le prix de vente est obligatoire")
@@ -29,13 +29,15 @@ public class ProduitRequest {
 
     @NotNull(message = "Le stock minimum est obligatoire")
     @Min(0)
-    private Integer stockMinimum;
+    private BigDecimal stockMinimum;
 
      @NotNull(message = "Le stock maximum est obligatoire")
     @Min(0)
-    private Integer stockMaximum;
+    private BigDecimal stockMaximum;
 
     private List<ImagePhotoRequest> images;
 
     private List<ProduitFournisseurRequest> fournisseurs;
+
+
 }

@@ -1,6 +1,7 @@
 package com.king.pos.Entitys;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 import jakarta.persistence.*;
 import lombok.*;
@@ -40,4 +41,10 @@ public class TarifCategorieProduit {
 
     @Column(length = 20)
     private String modeArrondi; // ENTIER_SUP, MULTIPLE_100, AUCUN
+    @Column
+    private LocalDateTime dateCreation;
+      @PrePersist
+    public void prePersist() {
+        if (dateCreation == null) dateCreation = LocalDateTime.now();
+    }
 }

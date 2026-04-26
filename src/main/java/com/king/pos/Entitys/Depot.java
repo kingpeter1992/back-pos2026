@@ -1,10 +1,14 @@
 package com.king.pos.Entitys;
 
+import java.time.LocalDateTime;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -26,4 +30,34 @@ public class Depot {
 
     @Column(length = 100)
     private String adresse;
+    
+    @Builder.Default
+    @Column(nullable = false)
+    private Boolean actif = true;
+
+    @Builder.Default
+    @Column(nullable = false)
+    private Boolean parDefaut = false;
+
+    private LocalDateTime dateCreation;
+    private LocalDateTime dateModification;
+
+    @PrePersist
+    public void prePersist() {
+        if (dateCreation == null) {
+            dateCreation = LocalDateTime.now();
+        }
+        if (actif == null) {
+            actif = true;
+        }
+        if (parDefaut == null) {
+            parDefaut = false;
+        }
+    }
+
+    @PreUpdate
+    public void preUpdate() {
+        dateModification = LocalDateTime.now();
+    }
+
 }

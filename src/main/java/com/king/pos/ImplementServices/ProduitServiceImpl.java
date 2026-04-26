@@ -15,7 +15,6 @@ import com.king.pos.Entitys.Fournisseur;
 import com.king.pos.Entitys.ImagePhoto;
 import com.king.pos.Entitys.Produit;
 import com.king.pos.Entitys.ProduitFournisseur;
-import com.king.pos.Entitys.StockProduit;
 import com.king.pos.Handllers.BusinessException;
 import com.king.pos.Handllers.ResourceNotFoundException;
 import com.king.pos.Interface.ProduitService;
@@ -24,6 +23,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -35,7 +35,6 @@ public class ProduitServiceImpl implements ProduitService {
     private final ProduitRepository produitRepository;
     private final FournisseurRepository fournisseurRepository;
     private final CategorieRepository categorieRepository;
-    private final StockRepository stockRepository;
 
  @Override
 public ProduitResponse create(ProduitRequest request) {
@@ -63,6 +62,7 @@ public ProduitResponse create(ProduitRequest request) {
             .stockMinimum(request.getStockMinimum())
             .stockMaximum(request.getStockMaximum())
             .actif(true)
+            .perissable(request.getPerissable())
             .build();
 
     if (request.getImages() != null && !request.getImages().isEmpty()) {
@@ -132,19 +132,19 @@ private String generateUniqueBarcode() {
                 .toList();
     }
 
-    @Override
-    @Transactional(readOnly = true)
-    public ProduitResponse findByCodeBarres(String codeBarres) {
-        Produit produit = produitRepository.findByCodeBarres(codeBarres).get();
-
-        return mapToResponse(produit);
-    }
-
+@Override
+@Transactional(readOnly = true)
+public ProduitResponse findByCodeBarres(String codeBarres) {
+    return produitRepository.findByCodeBarres(codeBarres)
+            .map(this::mapToResponse)
+            .orElse(null); // ✅ pas d'erreur
+}
     private ProduitResponse mapToResponse(Produit produit) {
     return ProduitResponse.builder()
             .id(produit.getId())
             .codeBarres(produit.getCodeBarres())
             .nom(produit.getNom())
+            .perissable(produit.getPerissable())
             .description(produit.getDescription())
             .categorieId(produit.getCategorie() != null ? produit.getCategorie().getId() : null)
             .categorieNom(produit.getCategorie() != null ? produit.getCategorie().getNom() : null)
@@ -227,8 +227,9 @@ public ProduitResponse update(Long id, ProduitRequest request) {
     produit.setDescription(request.getDescription());
     produit.setCategorie(categorie);
     produit.setPrixVente(request.getPrixVente());
-    produit.setStockMinimum(request.getStockMinimum() != null ? request.getStockMinimum() : 0);
-    produit.setStockMaximum(request.getStockMaximum() != null ? request.getStockMaximum() : 0);
+    produit.setPerissable(request.getPerissable());
+    produit.setStockMinimum(request.getStockMinimum() != null ? request.getStockMinimum() : BigDecimal.ZERO);
+    produit.setStockMaximum(request.getStockMaximum() != null ? request.getStockMaximum() : BigDecimal.ZERO);
 
 
     // 🔥 Actif / inactif
@@ -276,12 +277,58 @@ public ProduitResponse update(Long id, ProduitRequest request) {
 @Override
 @Transactional(readOnly = true)
 public ProduitResponse findById(Long id) {
-    Produit produit = produitRepository.findById(id)
+    Produit produit = produitRepository.findWithDetailsById(id)
             .orElseThrow(() -> new ResourceNotFoundException("Produit introuvable"));
-
-    return mapToResponse(produit);
+    return mapToResponse1(produit);
 }
 
 
+private ProduitResponse mapToResponse1(Produit produit) {
+    return ProduitResponse.builder()
+            .id(produit.getId())
+            .codeBarres(produit.getCodeBarres())
+            .nom(produit.getNom())
+            .description(produit.getDescription())
+            .categorieId(produit.getCategorie() != null ? produit.getCategorie().getId() : null)
+            .categorieNom(produit.getCategorie() != null ? produit.getCategorie().getNom() : null)
+            .prixAchat(produit.getPrixAchat())
+            .prixVente(produit.getPrixVente())
+            .stockMinimum(produit.getStockMinimum())
+            .stockMaximum(produit.getStockMaximum())
+            .actif(produit.getActif())
+            .perissable(produit.getPerissable())
+            .dateCreation(produit.getDateCreation())
+            .images(
+                    produit.getImages() != null
+                            ? produit.getImages().stream()
+                            .map(img -> ImagePhotoResponse.builder()
+                                    .id(img.getId())
+                                    .nomFichier(img.getNomFichier())
+                                    .contentType(img.getContentType())
+                                    .url(img.getUrl())
+                                    .principale(img.getPrincipale())
+                                    .build())
+                            .toList()
+                            : List.of()
+            )
+            .fournisseurs(
+                    produit.getProduitFournisseurs() != null
+                            ? produit.getProduitFournisseurs().stream()
+                            .map(pf -> ProduitFournisseurResponse.builder()
+                                    .id(pf.getId())
+                                    .fournisseurId(pf.getFournisseur() != null ? pf.getFournisseur().getId() : null)
+                                    .fournisseurNom(pf.getFournisseur() != null ? pf.getFournisseur().getNom() : null)
+                                    .referenceFournisseur(pf.getReferenceFournisseur())
+                                    .prixAchat(pf.getPrixAchat())
+                                    .delaiLivraisonJours(pf.getDelaiLivraisonJours())
+                                    .quantiteMinCommande(pf.getQuantiteMinCommande())
+                                    .fournisseurPrincipal(pf.getFournisseurPrincipal())
+                                    .actif(pf.getActif())
+                                    .build())
+                            .toList()
+                            : List.of()
+            )
+            .build();
+}
   
 }

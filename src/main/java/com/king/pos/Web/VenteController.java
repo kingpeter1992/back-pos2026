@@ -6,12 +6,14 @@ import java.util.List;
 
 import org.springframework.web.bind.annotation.*;
 
+import com.king.pos.Dto.AnnulationVenteRequest;
 import com.king.pos.Dto.VenteRequest;
 import com.king.pos.Dto.Response.ProduitPosResponse;
 import com.king.pos.Dto.Response.VenteResponse;
-import com.king.pos.Entitys.Vente;
-import com.king.pos.ImplementServices.StockServiceImpl;
-import com.king.pos.Interface.VenteService;
+import com.king.pos.ImplementServices.VenteServiceImpl;
+import com.king.pos.Interface.StockService;
+
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/ventes")
@@ -19,17 +21,23 @@ import com.king.pos.Interface.VenteService;
 @CrossOrigin("*")
 public class VenteController {
 
-    private final VenteService venteService;
-    private final StockServiceImpl stockService;
+    private final VenteServiceImpl venteService;
+    private final StockService stockService;
 
+    
     @PostMapping
     public VenteResponse enregistrer(@RequestBody VenteRequest request) {
         return venteService.enregistrerVente(request);
     }
-        @PatchMapping("/{id}/annuler")
-        public VenteResponse annulerVente(@PathVariable Long id) {
-            return venteService.annulerVente(id);
-        }
+@PostMapping("/{id}/annuler")
+public VenteResponse annulerVente(
+        @PathVariable Long id,
+        @RequestBody @Valid AnnulationVenteRequest request
+) {
+    return venteService.annulerVente(id, request);
+}
+
+
     @GetMapping
     public List<VenteResponse> getAllVente() {
         return venteService.getAllVente();

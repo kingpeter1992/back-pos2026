@@ -1,41 +1,23 @@
 package com.king.pos.ImplementServices;
 
-import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.stream.Collectors;
 
-import org.springframework.data.domain.Sort;
+
 import org.springframework.stereotype.Service;
 
-import com.king.pos.Dao.CaisseRepository;
 import com.king.pos.Dao.CaisseSessionRepository;
 import com.king.pos.Dao.ClientRepository;
 import com.king.pos.Dao.TransactionCaisseRepository;
 import com.king.pos.Dto.CaisseSessionDto;
 import com.king.pos.Dto.CaisseSummaryDTO;
 import com.king.pos.Dto.CloturerCaisseDTO;
-import com.king.pos.Dto.CustomerFinanceHistoryDto;
-import com.king.pos.Dto.DecaissementAgentDTO;
-import com.king.pos.Dto.DepenseDTO;
-import com.king.pos.Dto.EncaissementAgentDTO;
-import com.king.pos.Dto.EncaissementClientDTO;
 import com.king.pos.Dto.OperationCaisseDTO;
 import com.king.pos.Dto.OuvrirCaisseDTO;
-import com.king.pos.Dto.SessionReportDTO;
-import com.king.pos.Dto.SoldeCaisseDTO;
 import com.king.pos.Dto.TransactionCaisseDto;
-import com.king.pos.Entitys.Caisse;
 import com.king.pos.Entitys.CaisseSession;
-import com.king.pos.Entitys.Categorie;
 import com.king.pos.Entitys.Client;
-import com.king.pos.Entitys.ModePaiement;
 import com.king.pos.Entitys.TauxJournalier;
 import com.king.pos.Entitys.TransactionCaisse;
 import com.king.pos.Entitys.TypeTransaction;

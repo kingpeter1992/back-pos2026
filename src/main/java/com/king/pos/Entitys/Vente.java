@@ -21,6 +21,10 @@ public class Vente {
 
     private LocalDateTime dateVente;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "depot_id")
+    private Depot depot;
+
     @Column(precision = 12, scale = 2, nullable = false)
     private BigDecimal total;
 
@@ -28,12 +32,22 @@ public class Vente {
     @Column(nullable = false)
     private ModePaiement modePaiement;
 
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "vente_origine_id")
+    private Vente venteOrigine;
+
+    @Column(name = "commentaire_annulation", length = 500)
+    private String commentaireAnnulation;
+
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private StatutVente statut;
-    
+    private BigDecimal taux;
     private BigDecimal totalHT; //TotalHT
     private BigDecimal totalRemise; //TotalRemise
+    private BigDecimal totalTva; //TotalTVA
     private BigDecimal totalTTC; //TotalTTC
 
     private String devise;
@@ -49,6 +63,8 @@ public class Vente {
     @OneToMany(mappedBy = "vente", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<LigneVente> lignes = new ArrayList<>();
+
+
 
     @PrePersist
     public void prePersist() {

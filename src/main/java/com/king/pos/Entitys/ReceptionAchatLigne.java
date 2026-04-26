@@ -1,6 +1,7 @@
 package com.king.pos.Entitys;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -61,11 +62,15 @@ public class ReceptionAchatLigne {
     @Column(precision = 18, scale = 6)
     private BigDecimal ancienPmp;
 
+    private LocalDate datePeremption;
+
     @Column(precision = 18, scale = 3)
     private BigDecimal nouveauStock;
 
     @Column(precision = 18, scale = 6)
     private BigDecimal nouveauPmp;
+    @Column(length = 100)
+    private String numeroLot;
 
     @PrePersist
     @PreUpdate

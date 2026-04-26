@@ -37,10 +37,12 @@ public class StockProduit {
     @Column(nullable = false, precision = 18, scale = 2)
     private BigDecimal valeurStock;
 
+
     private LocalDateTime dateDerniereEntree;
     private LocalDateTime dateDerniereSortie;
     private LocalDateTime dateCreation;
     private LocalDateTime dateModification;
+    private LocalDateTime dateDerniereMiseAJour;
 
     @PrePersist
     public void prePersist() {

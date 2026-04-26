@@ -54,8 +54,8 @@ public class CommandeAchat {
     @Column(columnDefinition = "TEXT")
     private String observation;
 
-    private LocalDateTime dateCreation;
-    private LocalDateTime dateModification;
+    private LocalDate dateCreation;
+    private LocalDate dateModification;
 
     @OneToMany(mappedBy = "commandeAchat", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
@@ -65,7 +65,7 @@ public class CommandeAchat {
     @PrePersist
     public void prePersist() {
         if (dateCommande == null) dateCommande = LocalDate.now();
-        if (dateCreation == null) dateCreation = LocalDateTime.now();
+        if (dateCreation == null) dateCreation = LocalDate.now();
         if (statut == null) statut = StatutCommandeFournisseur.BROUILLON;
         if (montantTotal == null) montantTotal = BigDecimal.ZERO;
         if (taux == null) taux = BigDecimal.ONE;
@@ -79,7 +79,7 @@ public class CommandeAchat {
 
     @PreUpdate
     public void preUpdate() {
-        dateModification = LocalDateTime.now();
+        dateModification = LocalDate.now();
     }
 
 }

@@ -24,6 +24,7 @@ public class VenteResponse {
     private BigDecimal sousTotal;
     private BigDecimal totalRemise;
     private BigDecimal totalGeneral;
+    private BigDecimal taux;
     private String devise;
     private Long tarifId;
     private String statut;

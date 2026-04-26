@@ -10,7 +10,7 @@ import java.math.BigDecimal;
 @NoArgsConstructor
 @AllArgsConstructor
 public class StockAlerteView {
-    private Long stockId;
+   private Long stockId;
     private Long produitId;
     private String nomProduit;
     private String codeBarre;
@@ -18,7 +18,7 @@ public class StockAlerteView {
     private Long depotId;
     private String nomDepot;
     private BigDecimal quantiteDisponible;
-    private Integer stockMinimum;
-    private Integer stockMaximum;
+    private BigDecimal stockMinimum;
+    private BigDecimal stockMaximum;
     private String statutStock;
 }

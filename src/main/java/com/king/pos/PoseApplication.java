@@ -9,6 +9,7 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
+import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,6 +29,7 @@ import com.king.pos.Entitys.Role;
 import com.king.pos.Entitys.User;
 
 @SpringBootApplication
+@EnableScheduling
 public class PoseApplication {
 
     public static void main(String[] args) {
@@ -136,30 +138,42 @@ public class PoseApplication {
     }
 
 
-    void seedDepots(DepotRepository depotRepository) {
-        System.out.println("🚀 Initialisation des dépôts...");
+void seedDepots(DepotRepository depotRepository) {
+    System.out.println("🚀 Initialisation des dépôts...");
 
-        if (depotRepository.count() > 0) {
-            System.out.println("✔ Dépôts déjà existants, skip...");
-            return;
-        }
-
-        List<Depot> depots = List.of(
-                Depot.builder()
-                        .nom("Dépôt Central")
-                        .adresse("123 Rue Principale, Ville")
-                        .build(),
-
-                Depot.builder()
-                        .nom("Dépôt Secondaire")
-                        .adresse("456 Avenue Secondaire, Ville")
-                        .build()
-        );
-
-        depotRepository.saveAll(depots);
-
-        System.out.println("✅ Dépôts initialisés avec succès !");
+    if (depotRepository.count() > 0) {
+        System.out.println("✔ Dépôts déjà existants, skip...");
+        return;
     }
+
+    List<Depot> depots = List.of(
+
+            Depot.builder()
+                    .nom("Dépôt Central")
+                    .adresse("Centre-ville")
+                    .actif(true)
+                    .parDefaut(true) // dépôt principal
+                    .build(),
+
+            Depot.builder()
+                    .nom("Dépôt Boutique")
+                    .adresse("Commune annexe")
+                    .actif(true)
+                    .parDefaut(false)
+                    .build(),
+
+            Depot.builder()
+                    .nom("Dépôt Secondaire")
+                    .adresse("Entrepôt périphérique")
+                    .actif(false)
+                    .parDefaut(false)
+                    .build()
+    );
+
+    depotRepository.saveAll(depots);
+
+    System.out.println("✅ Dépôts initialisés avec succès !");
+}
    
 private void seedFournisseur(FournisseurRepository fournisseurRepository) {
 

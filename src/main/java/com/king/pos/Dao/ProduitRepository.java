@@ -1,7 +1,7 @@
 package com.king.pos.Dao;
 
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
 
 import com.king.pos.Entitys.Produit;
 
@@ -13,4 +13,14 @@ public interface ProduitRepository extends JpaRepository<Produit, Long> {
     List<Produit> findByNomContainingIgnoreCase(String nom);
     boolean existsByCodeBarres(String codeBarres);
     boolean existsByCategorieId(Long id);
+    
+
+    @EntityGraph(attributePaths = {
+            "categorie",
+            "images",
+            "produitFournisseurs",
+            "produitFournisseurs.fournisseur"
+    })
+    Optional<Produit> findWithDetailsById(Long id);
+    
 }
