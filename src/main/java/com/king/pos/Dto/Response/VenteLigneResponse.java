@@ -10,10 +10,21 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 public class VenteLigneResponse {
+
     private Long produitId;
     private String produitNom;
+
     private BigDecimal quantite;
+
     private BigDecimal prixUnitaire;
     private BigDecimal remise;
     private BigDecimal totalLigne;
+
+    private BigDecimal prixCDF;
+    private BigDecimal remiseCDF;
+    private BigDecimal totalCDF;
+
+    private BigDecimal prixUSD;
+    private BigDecimal remiseUSD;
+    private BigDecimal totalUSD;
 }

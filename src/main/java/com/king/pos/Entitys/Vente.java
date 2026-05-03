@@ -50,6 +50,40 @@ public class Vente {
     private BigDecimal totalTva; //TotalTVA
     private BigDecimal totalTTC; //TotalTTC
 
+
+    @Column(precision = 19, scale = 6)
+private BigDecimal tauxChange;
+
+@Column(precision = 19, scale = 2)
+private BigDecimal sousTotalCDF;
+
+@Column(precision = 19, scale = 2)
+private BigDecimal totalRemiseCDF;
+
+@Column(precision = 19, scale = 2)
+private BigDecimal totalGeneralCDF;
+
+@Column(precision = 19, scale = 2)
+private BigDecimal montantRecuCDF;
+
+@Column(precision = 19, scale = 2)
+private BigDecimal monnaieCDF;
+
+@Column(precision = 19, scale = 2)
+private BigDecimal sousTotalUSD;
+
+@Column(precision = 19, scale = 2)
+private BigDecimal totalRemiseUSD;
+
+@Column(precision = 19, scale = 2)
+private BigDecimal totalGeneralUSD;
+
+@Column(precision = 19, scale = 2)
+private BigDecimal montantRecuUSD;
+
+@Column(precision = 19, scale = 2)
+private BigDecimal monnaieUSD;
+
     private String devise;
 
     @Column(length = 100)

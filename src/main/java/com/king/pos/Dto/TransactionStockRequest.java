@@ -31,4 +31,20 @@ public class TransactionStockRequest {
     private Long sourceDocumentId;
     private String libelle;
     private String utilisateur;
+    private BigDecimal tauxChangeUtilise;
+
+private BigDecimal prixUnitaireFc;
+private BigDecimal prixUnitaireUsd;
+
+private BigDecimal fraisUnitaireFc;
+private BigDecimal fraisUnitaireUsd;
+
+private BigDecimal coutUnitaireFinalFc;
+private BigDecimal coutUnitaireFinalUsd;
+
+private BigDecimal montantLigneFc;
+private BigDecimal montantLigneUsd;
+
+
+
 }

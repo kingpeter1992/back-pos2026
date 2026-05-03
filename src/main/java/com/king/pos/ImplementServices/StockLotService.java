@@ -28,31 +28,60 @@ public class StockLotService {
     private final StockLotRepository stockLotRepository;
 
     @Transactional
-    public StockLot creerLotEntree(
-           StockLot stockLot
-    ) {
-        StatutPeremption statut = PeremptionUtils.calculerStatut(stockLot.getDatePeremption());
+public StockLot creerLotEntree(StockLot stockLot) {
 
-        StockLot lot = StockLot.builder()
-                .produit(stockLot.getProduit())
-                .depot(stockLot.getDepot())
-                .quantiteInitiale(scale3(stockLot.getQuantiteInitiale()))
-                .quantiteDisponible(scale3(stockLot.getQuantiteDisponible()))
-                .prixUnitaire(scale6(stockLot.getPrixUnitaire()))
-                .fraisUnitaire(scale6(stockLot.getFraisUnitaire()))
-                .coutUnitaireFinal(scale6(stockLot.getCoutUnitaireFinal()))
-                .dateEntree(stockLot.getDateEntree() != null ? stockLot.getDateEntree() : LocalDate.now())
-                .datePeremption(stockLot.getDatePeremption())
-                .numeroLot(stockLot.getNumeroLot())
-                .statutPeremption(statut)
-                .referenceDocument(stockLot.getReferenceDocument())
-                .sourceDocument(stockLot.getSourceDocument())
-                .sourceDocumentId(stockLot.getSourceDocumentId())
-                .build();
+    StatutPeremption statut =
+            PeremptionUtils.calculerStatut(stockLot.getDatePeremption());
 
-        return stockLotRepository.save(lot);
-    }
+    StockLot lot = StockLot.builder()
+            .produit(stockLot.getProduit())
+            .depot(stockLot.getDepot())
 
+            .quantiteInitiale(scale3(stockLot.getQuantiteInitiale()))
+            .quantiteDisponible(scale3(stockLot.getQuantiteDisponible()))
+
+            .prixUnitaire(scale6(stockLot.getPrixUnitaire()))
+            .fraisUnitaire(scale6(stockLot.getFraisUnitaire()))
+            .coutUnitaireFinal(scale6(stockLot.getCoutUnitaireFinal()))
+
+            // ===== MULTIDEVISE =====
+            .tauxChangeUtilise(scale6(stockLot.getTauxChangeUtilise()))
+
+            .prixUnitaireFc(scale6(stockLot.getPrixUnitaireFc()))
+            .prixUnitaireUsd(scale6(stockLot.getPrixUnitaireUsd()))
+
+            .fraisUnitaireFc(scale6(stockLot.getFraisUnitaireFc()))
+            .fraisUnitaireUsd(scale6(stockLot.getFraisUnitaireUsd()))
+
+            .coutUnitaireFinalFc(scale6(stockLot.getCoutUnitaireFinalFc()))
+            .coutUnitaireFinalUsd(scale6(stockLot.getCoutUnitaireFinalUsd()))
+
+            .montantLigneFc(scale2(stockLot.getMontantLigneFc()))
+            .montantLigneUsd(scale2(stockLot.getMontantLigneUsd()))
+
+            // ===== LOT =====
+            .dateEntree(
+                    stockLot.getDateEntree() != null
+                            ? stockLot.getDateEntree()
+                            : LocalDate.now()
+            )
+            .datePeremption(stockLot.getDatePeremption())
+            .numeroLot(stockLot.getNumeroLot())
+
+            .statutPeremption(statut)
+
+            .referenceDocument(stockLot.getReferenceDocument())
+            .sourceDocument(stockLot.getSourceDocument())
+            .sourceDocumentId(stockLot.getSourceDocumentId())
+
+            .build();
+
+    return stockLotRepository.save(lot);
+}
+
+private BigDecimal scale2(BigDecimal value) {
+    return nvl(value).setScale(2, RoundingMode.HALF_UP);
+}
     @Transactional
     public void mettreAJourStatutLot(StockLot lot) {
         lot.setStatutPeremption(
@@ -106,26 +135,50 @@ public List<StockLotResponse> getAll() {
     return lots.stream()
             .map(this::mapToResponse)
             .toList();
-}private StockLotResponse mapToResponse(StockLot lot) {
+}
+
+
+private StockLotResponse mapToResponse(StockLot lot) {
     return StockLotResponse.builder()
             .id(lot.getId())
             .produitId(lot.getProduit() != null ? lot.getProduit().getId() : null)
             .produitNom(lot.getProduit() != null ? lot.getProduit().getNom() : null)
             .depotId(lot.getDepot() != null ? lot.getDepot().getId() : null)
             .depotNom(lot.getDepot() != null ? lot.getDepot().getNom() : null)
-            .quantiteInitiale(lot.getQuantiteInitiale())
+           .quantiteInitiale(lot.getQuantiteInitiale())
             .quantiteDisponible(lot.getQuantiteDisponible())
+
             .prixUnitaire(lot.getPrixUnitaire())
             .fraisUnitaire(lot.getFraisUnitaire())
             .coutUnitaireFinal(lot.getCoutUnitaireFinal())
+
+            // MULTIDEVISE
+            .tauxChangeUtilise(lot.getTauxChangeUtilise())
+
+            .prixUnitaireFc(lot.getPrixUnitaireFc())
+            .prixUnitaireUsd(lot.getPrixUnitaireUsd())
+
+            .fraisUnitaireFc(lot.getFraisUnitaireFc())
+            .fraisUnitaireUsd(lot.getFraisUnitaireUsd())
+
+            .coutUnitaireFinalFc(lot.getCoutUnitaireFinalFc())
+            .coutUnitaireFinalUsd(lot.getCoutUnitaireFinalUsd())
+
+            .montantLigneFc(lot.getMontantLigneFc())
+            .montantLigneUsd(lot.getMontantLigneUsd())
+
             .dateEntree(lot.getDateEntree())
             .datePeremption(lot.getDatePeremption())
+
             .statutPeremption(lot.getStatutPeremption())
+
             .referenceDocument(lot.getReferenceDocument())
             .sourceDocument(lot.getSourceDocument())
             .sourceDocumentId(lot.getSourceDocumentId())
+
             .dateCreation(lot.getDateCreation())
             .dateModification(lot.getDateModification())
+
             .numeroLot(lot.getNumeroLot())
             .build();
 }

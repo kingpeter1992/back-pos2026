@@ -1,6 +1,5 @@
 package com.king.pos.ImplementServices;
 
-
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -42,11 +41,15 @@ public class TransactionStockService {
         }
 
         BigDecimal quantite = scale3(nvl(request.getQuantite()));
+
         if (quantite.compareTo(BigDecimal.ZERO) <= 0) {
             throw new BusinessException("La quantité doit être supérieure à zéro.");
         }
 
-        StockProduit stock = stockProduitRepository.findByProduitAndDepot(request.getProduit(), request.getDepot())
+        BigDecimal taux = scale6(nvl(request.getTauxChangeUtilise()));
+
+        StockProduit stock = stockProduitRepository
+                .findByProduitAndDepot(request.getProduit(), request.getDepot())
                 .orElseGet(() -> stockProduitRepository.save(
                         StockProduit.builder()
                                 .produit(request.getProduit())
@@ -54,6 +57,11 @@ public class TransactionStockService {
                                 .quantiteDisponible(BigDecimal.ZERO)
                                 .pmp(BigDecimal.ZERO)
                                 .valeurStock(BigDecimal.ZERO)
+                                .tauxChangeUtilise(taux)
+                                .pmpFc(BigDecimal.ZERO)
+                                .pmpUsd(BigDecimal.ZERO)
+                                .valeurStockFc(BigDecimal.ZERO)
+                                .valeurStockUsd(BigDecimal.ZERO)
                                 .dateCreation(LocalDateTime.now())
                                 .build()
                 ));
@@ -69,13 +77,15 @@ public class TransactionStockService {
         if (entree) {
             stockApres = scale3(stockAvant.add(quantite));
 
-            BigDecimal coutFinal = scale6(nvl(request.getCoutUnitaireFinal()));
-            BigDecimal valeurAvant = stockAvant.multiply(pmpAvant);
-            BigDecimal valeurEntree = quantite.multiply(coutFinal);
+            BigDecimal coutFinalFc = scale6(nvl(request.getCoutUnitaireFinal()));
+
+            BigDecimal valeurAvantFc = stockAvant.multiply(pmpAvant);
+            BigDecimal valeurEntreeFc = quantite.multiply(coutFinalFc);
 
             pmpApres = stockApres.compareTo(BigDecimal.ZERO) == 0
                     ? BigDecimal.ZERO
-                    : valeurAvant.add(valeurEntree).divide(stockApres, 6, RoundingMode.HALF_UP);
+                    : valeurAvantFc.add(valeurEntreeFc)
+                            .divide(stockApres, 6, RoundingMode.HALF_UP);
 
         } else {
             if (stockAvant.compareTo(quantite) < 0) {
@@ -91,9 +101,24 @@ public class TransactionStockService {
             }
         }
 
+        BigDecimal valeurStockFc = scale2(stockApres.multiply(pmpApres));
+
+        BigDecimal pmpUsd = BigDecimal.ZERO;
+        BigDecimal valeurStockUsd = BigDecimal.ZERO;
+
+        if (taux.compareTo(BigDecimal.ZERO) > 0) {
+            pmpUsd = pmpApres.divide(taux, 6, RoundingMode.HALF_UP);
+            valeurStockUsd = valeurStockFc.divide(taux, 2, RoundingMode.HALF_UP);
+        }
+
         stock.setQuantiteDisponible(stockApres);
         stock.setPmp(scale6(pmpApres));
-        stock.setValeurStock(scale2(stockApres.multiply(pmpApres)));
+        stock.setValeurStock(valeurStockFc);
+        stock.setTauxChangeUtilise(taux);
+        stock.setPmpFc(scale6(pmpApres));
+        stock.setPmpUsd(scale6(pmpUsd));
+        stock.setValeurStockFc(valeurStockFc);
+        stock.setValeurStockUsd(valeurStockUsd);
         stock.setDateDerniereMiseAJour(LocalDateTime.now());
 
         stockProduitRepository.save(stock);
@@ -108,6 +133,7 @@ public class TransactionStockService {
                 .stockApres(stockApres)
                 .pmpAvant(scale6(pmpAvant))
                 .pmpApres(scale6(pmpApres))
+                .tauxChangeUtilise(taux)
                 .prixUnitaire(scale6(nvl(request.getPrixUnitaire())))
                 .fraisUnitaire(scale6(nvl(request.getFraisUnitaire())))
                 .coutUnitaireFinal(scale6(nvl(request.getCoutUnitaireFinal())))
@@ -121,12 +147,6 @@ public class TransactionStockService {
         transactionStockRepository.save(transaction);
     }
 
-    /**
-     * Entrée stock standard, utilisée par l'inventaire et autres mouvements.
-     *
-     * locatorId et stockLotId sont acceptés pour compatibilité avec les appels
-     * métier, mais ne sont pas encore persistés dans TransactionStock.
-     */
     @Transactional
     public void entree(
             Long produitId,
@@ -136,9 +156,10 @@ public class TransactionStockService {
             BigDecimal quantite,
             BigDecimal coutUnitaireFinal,
             TypeMouvementStock typeMouvement,
+            BigDecimal taux,
             String sourceDocument,
-            String referenceDocument
-    ) {
+            String referenceDocument) {
+
         Produit produit = produitRepository.findById(produitId)
                 .orElseThrow(() -> new BusinessException("Produit introuvable"));
 
@@ -153,6 +174,7 @@ public class TransactionStockService {
         request.setPrixUnitaire(scale6(nvl(coutUnitaireFinal)));
         request.setFraisUnitaire(BigDecimal.ZERO);
         request.setCoutUnitaireFinal(scale6(nvl(coutUnitaireFinal)));
+        request.setTauxChangeUtilise(scale6(nvl(taux)));
         request.setReferenceDocument(referenceDocument);
         request.setSourceDocument(sourceDocument);
         request.setSourceDocumentId(null);
@@ -162,12 +184,6 @@ public class TransactionStockService {
         appliquerTransaction(request);
     }
 
-    /**
-     * Sortie stock standard, utilisée par l'inventaire et autres mouvements.
-     *
-     * locatorId et stockLotId sont acceptés pour compatibilité avec les appels
-     * métier, mais ne sont pas encore persistés dans TransactionStock.
-     */
     @Transactional
     public void sortie(
             Long produitId,
@@ -178,8 +194,9 @@ public class TransactionStockService {
             BigDecimal coutUnitaireFinal,
             TypeMouvementStock typeMouvement,
             String sourceDocument,
-            String referenceDocument
-    ) {
+            BigDecimal taux,
+            String referenceDocument) {
+
         Produit produit = produitRepository.findById(produitId)
                 .orElseThrow(() -> new BusinessException("Produit introuvable"));
 
@@ -194,6 +211,7 @@ public class TransactionStockService {
         request.setPrixUnitaire(scale6(nvl(coutUnitaireFinal)));
         request.setFraisUnitaire(BigDecimal.ZERO);
         request.setCoutUnitaireFinal(scale6(nvl(coutUnitaireFinal)));
+        request.setTauxChangeUtilise(scale6(nvl(taux)));
         request.setReferenceDocument(referenceDocument);
         request.setSourceDocument(sourceDocument);
         request.setSourceDocumentId(null);
@@ -203,17 +221,10 @@ public class TransactionStockService {
         appliquerTransaction(request);
     }
 
-    /**
-     * Annule tous les mouvements d'une référence donnée.
-     *
-     * Exemple :
-     * - si un ajustement inventaire a fait une entrée, on fait une sortie inverse
-     * - si un ajustement inventaire a fait une sortie, on fait une entrée inverse
-     */
     @Transactional
     public void annulerParReference(String reference, String source) {
-        List<TransactionStock> transactions =
-                transactionStockRepository.findByReferenceDocumentAndSourceDocument(reference, source);
+        List<TransactionStock> transactions = transactionStockRepository
+                .findByReferenceDocumentAndSourceDocument(reference, source);
 
         if (transactions.isEmpty()) {
             return;
@@ -233,10 +244,13 @@ public class TransactionStockService {
             }
 
             BigDecimal quantite = scale3(tx.getQuantite());
+            BigDecimal taux = scale6(nvl(tx.getTauxChangeUtilise()));
 
             BigDecimal pmp = tx.getPmpApres() != null
                     ? scale6(tx.getPmpApres())
-                    : (tx.getPmpAvant() != null ? scale6(tx.getPmpAvant()) : BigDecimal.ZERO);
+                    : tx.getPmpAvant() != null
+                            ? scale6(tx.getPmpAvant())
+                            : BigDecimal.ZERO;
 
             Long produitId = tx.getProduit().getId();
             Long depotId = tx.getDepot().getId();
@@ -254,6 +268,7 @@ public class TransactionStockService {
                         pmp,
                         TypeMouvementStock.ANNULATION_RECEPTION_SORTIE,
                         "ANNULATION_INVENTAIRE",
+                        taux,
                         reference
                 );
             } else {
@@ -265,6 +280,7 @@ public class TransactionStockService {
                         quantite,
                         pmp,
                         TypeMouvementStock.ANNULATION_VENTE_ENTREE,
+                        taux,
                         "ANNULATION_INVENTAIRE",
                         reference
                 );
@@ -273,14 +289,18 @@ public class TransactionStockService {
     }
 
     private boolean isEntree(TypeMouvementStock type) {
+        if (type == null) {
+            return false;
+        }
+
         return switch (type) {
             case ENTREE_ACHAT,
-                 INVENTAIRE_ENTREE,
-                 AJUSTEMENT_ENTREE,
-                 RETOUR_CLIENT_ENTREE,
-                 TRANSFERT_ENTREE,
-                 ANNULATION_VENTE_ENTREE,
-                 AJUSTEMENT_INVENTAIRE_ENTREE -> true;
+                    INVENTAIRE_ENTREE,
+                    AJUSTEMENT_ENTREE,
+                    RETOUR_CLIENT_ENTREE,
+                    TRANSFERT_ENTREE,
+                    ANNULATION_VENTE_ENTREE,
+                    AJUSTEMENT_INVENTAIRE_ENTREE -> true;
             default -> false;
         };
     }

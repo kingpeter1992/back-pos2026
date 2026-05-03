@@ -74,4 +74,10 @@ public class TransactionStock {
 
     @Column(length = 100)
     private String utilisateur;
+
+    @Column(precision = 18, scale = 6)
+    private BigDecimal tauxChangeUtilise;
+    
+
+
 }

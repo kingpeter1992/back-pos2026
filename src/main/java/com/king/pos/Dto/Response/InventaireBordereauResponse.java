@@ -12,6 +12,9 @@ import java.time.LocalDateTime;
 public class InventaireBordereauResponse {
     private Long id;
     private String reference;
+    private Long inventaireId;
+    private String depotNom;
+    private Integer tailleBordereau;
     private Integer numeroOrdre;
     private Integer nombreLignes;
     private Boolean afficherQuantiteTheorique;
@@ -22,6 +25,7 @@ public class InventaireBordereauResponse {
     private LocalDateTime dateSaisie;
     private LocalDateTime dateValidation;
     private LocalDateTime dateMiseAJourStock;
+    private LocalDateTime dateCreation;
     private String commentaire;
     private Long locatorId;
     private String locatorCode;

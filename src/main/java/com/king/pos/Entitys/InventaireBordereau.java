@@ -68,12 +68,16 @@ private Boolean varianceLancee = false;
     private Boolean afficherQuantiteTheorique;
     private Boolean stockMisAJour;
     private LocalDateTime dateMiseAJourStock;
+    private LocalDateTime dateCreation;
+
     private String misAJourStockPar;
+
 
 
     @PrePersist
     public void prePersist() {
         if (dateSaisie == null) dateSaisie = LocalDateTime.now();
+        if (dateCreation == null) dateCreation = LocalDateTime.now();
         if (statut == null) statut = StatutBordereauInventaire.BROUILLON;
     }
 }

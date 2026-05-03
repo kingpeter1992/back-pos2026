@@ -12,10 +12,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.king.pos.Dto.CreateReceptionAchatRequest;
-import com.king.pos.Dto.ReceptionLocatorRequest;
 import com.king.pos.Dto.Response.DepotResponse;
 import com.king.pos.Dto.Response.ReceptionAchatResponse;
-import com.king.pos.Dto.Response.ReceptionLocatorPreparationResponse;
 import com.king.pos.ImplementServices.ReceptionAchatCreationService;
 import com.king.pos.Interface.DepotService;
 

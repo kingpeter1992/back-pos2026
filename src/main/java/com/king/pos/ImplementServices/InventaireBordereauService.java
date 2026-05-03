@@ -9,6 +9,7 @@ import com.king.pos.Dao.InventaireBordereauRepository;
 import com.king.pos.Dao.InventaireLigneRepository;
 import com.king.pos.Dao.InventaireRepository;
 import com.king.pos.Dao.LocatorRepository;
+import com.king.pos.Dao.StockRepository;
 import com.king.pos.Dto.InventaireBordereauLigneUpdateRequest;
 import com.king.pos.Dto.InventaireGenererBordereauxRequest;
 import com.king.pos.Dto.Response.InventaireBordereauLigneResponse;
@@ -38,6 +39,7 @@ public class InventaireBordereauService {
     private final InventaireBordereauLigneRepository bordereauLigneRepository;
     private final LocatorRepository locatorRepository;
     private final InventaireReferenceService referenceService;
+    private final StockRepository stockRepository;
     private final StockAjustementInventaireService stockAjustementInventaireService;
 
     @Transactional
@@ -133,6 +135,35 @@ public class InventaireBordereauService {
         return responses;
     }
 
+
+    
+    private InventaireBordereauResponse mapBordereauToResponse(InventaireBordereau b, int nbLignes) {
+
+     return InventaireBordereauResponse.builder()
+                .id(b.getId())
+                .reference(b.getReference())
+                .inventaireId(b.getInventaire() != null ? b.getInventaire().getId() : null)
+                .depotNom(b.getDepot() != null ? b.getDepot().getNom() : null)
+                .locatorCode(b.getLocator() != null ? b.getLocator().getCode() : null)
+                .numeroOrdre(b.getNumeroOrdre())
+                .tailleBordereau(b.getTailleBordereau())
+                .afficherQuantiteTheorique(b.getAfficherQuantiteTheorique())
+                .stockMisAJour(b.getStockMisAJour())
+                .statut(b.getStatut())
+                .agentComptage(b.getAgentComptage())
+                .commentaire(b.getCommentaire())
+                .dateCreation(b.getDateCreation())
+                .dateSaisie(b.getDateSaisie())
+                .dateValidation(b.getDateValidation())
+                .dateMiseAJourStock(b.getDateMiseAJourStock())
+                .validePar(b.getValidePar())
+                .agentComptage(b.getMisAJourStockPar())
+                .tailleBordereau(b.getTailleBordereau())
+                .nombreLignes(nbLignes)
+                .build();
+    }
+
+
 @Transactional
 public void saveLignes(Long bordereauId, List<InventaireBordereauLigneUpdateRequest> request) {
     InventaireBordereau bordereau = getBordereau(bordereauId);
@@ -210,82 +241,72 @@ public void saveLignes(Long bordereauId, List<InventaireBordereauLigneUpdateRequ
         bordereau.setDateValidation(LocalDateTime.now());
     }
 
-    @Transactional
-    public void miseAJourStock(Long bordereauId, String user) {
-        InventaireBordereau bordereau = getBordereau(bordereauId);
+@Transactional
+public void miseAJourStock(Long bordereauId, String user) {
+    InventaireBordereau bordereau = getBordereau(bordereauId);
 
-        if (Boolean.TRUE.equals(bordereau.getStockMisAJour())) {
-            throw new BusinessException("Le stock a déjà été mis à jour pour ce bordereau.");
+    if (Boolean.TRUE.equals(bordereau.getStockMisAJour())) {
+        throw new BusinessException("Le stock a déjà été mis à jour pour ce bordereau.");
+    }
+
+    if (bordereau.getStatut() != StatutBordereauInventaire.VALIDE) {
+        throw new BusinessException("Veuillez d'abord valider le bordereau.");
+    }
+
+    List<InventaireBordereauLigne> lignes =
+            bordereauLigneRepository.findByBordereauId(bordereauId);
+
+    for (InventaireBordereauLigne ligneB : lignes) {
+        InventaireLigne ligne = ligneB.getInventaireArticle();
+
+        if (ligne == null) {
+            continue;
         }
 
-        if (bordereau.getStatut() != StatutBordereauInventaire.VALIDE) {
-            throw new BusinessException("Veuillez d'abord valider le bordereau.");
+        if (!Boolean.TRUE.equals(ligne.getCompte())) {
+            continue;
         }
 
-        List<InventaireBordereauLigne> lignes = bordereauLigneRepository.findByBordereauId(bordereauId);
-
-        for (InventaireBordereauLigne ligneB : lignes) {
-            InventaireLigne ligne = ligneB.getInventaireArticle();
-
-            if (!Boolean.TRUE.equals(ligne.getCompte())) {
-                continue;
-            }
-
-            BigDecimal ecart = nvl(ligne.getEcartQuantite());
-            if (ecart.compareTo(BigDecimal.ZERO) == 0) {
-                continue;
-            }
-
-            stockAjustementInventaireService.ajusterDepuisInventaire(
-                    ligne.getProduit().getId(),
-                    ligne.getDepot().getId(),
-                    ligne.getLocator() != null ? ligne.getLocator().getId() : null,
-                    ligne.getStockLot() != null ? ligne.getStockLot().getId() : null,
-                    ecart,
-                    ligne.getPmp(),
-                    bordereau.getReference()
-            );
+        if (ligne.getProduit() == null || ligne.getProduit().getId() == null) {
+            continue;
         }
 
-        bordereau.setStockMisAJour(true);
-        bordereau.setDateMiseAJourStock(LocalDateTime.now());
-        bordereau.setMisAJourStockPar(user);
-        bordereau.setStatut(StatutBordereauInventaire.STOCK_MIS_A_JOUR);
+        if (ligne.getDepot() == null || ligne.getDepot().getId() == null) {
+            continue;
+        }
+
+        BigDecimal ecart = nvl(ligne.getEcartQuantite());
+
+        if (ecart.compareTo(BigDecimal.ZERO) == 0) {
+            continue;
+        }
+
+        BigDecimal tauxArticle = stockRepository
+                .findByProduitIdAndDepotId(
+                        ligne.getProduit().getId(),
+                        ligne.getDepot().getId()
+                )
+                .map(stock -> nvl(stock.getTauxChangeUtilise()))
+                .filter(taux -> taux.compareTo(BigDecimal.ZERO) > 0)
+                .orElse(BigDecimal.ONE);
+
+        stockAjustementInventaireService.ajusterDepuisInventaire(
+                ligne.getProduit().getId(),
+                ligne.getDepot().getId(),
+                ligne.getLocator() != null ? ligne.getLocator().getId() : null,
+                ligne.getStockLot() != null ? ligne.getStockLot().getId() : null,
+                ecart,
+                ligne.getPmp(),
+                tauxArticle,
+                bordereau.getReference()
+        );
     }
 
-    public List<InventaireBordereauResponse> getBordereauxByInventaire(Long inventaireId) {
-        return bordereauRepository.findByInventaireId(inventaireId)
-                .stream()
-                .map(b -> mapBordereauToResponse(b, bordereauLigneRepository.findByBordereauId(b.getId()).size()))
-                .toList();
-    }
-
-    public List<InventaireBordereauLigneResponse> getLignesByBordereau(Long bordereauId) {
-        return bordereauLigneRepository.findByBordereauId(bordereauId)
-                .stream()
-                .map(this::mapLigneToResponse)
-                .toList();
-    }
-
-    private InventaireBordereauResponse mapBordereauToResponse(InventaireBordereau b, int nbLignes) {
-        return InventaireBordereauResponse.builder()
-                .id(b.getId())
-                .reference(b.getReference())
-                .numeroOrdre(b.getNumeroOrdre())
-                .nombreLignes(nbLignes)
-                .afficherQuantiteTheorique(b.getAfficherQuantiteTheorique())
-                .stockMisAJour(b.getStockMisAJour())
-                .statut(b.getStatut())
-                .agentComptage(b.getAgentComptage())
-                .validePar(b.getValidePar())
-                .dateSaisie(b.getDateSaisie())
-                .dateValidation(b.getDateValidation())
-                .dateMiseAJourStock(b.getDateMiseAJourStock())
-                .commentaire(b.getCommentaire())
-                .locatorId(b.getLocator() != null ? b.getLocator().getId() : null)
-                .locatorCode(b.getLocator() != null ? b.getLocator().getCode() : null)
-                .build();
-    }
+    bordereau.setStockMisAJour(true);
+    bordereau.setDateMiseAJourStock(LocalDateTime.now());
+    bordereau.setMisAJourStockPar(user);
+    bordereau.setStatut(StatutBordereauInventaire.STOCK_MIS_A_JOUR);
+}
 
     private InventaireBordereauLigneResponse mapLigneToResponse(InventaireBordereauLigne l) {
         InventaireLigne a = l.getInventaireArticle();
@@ -324,5 +345,23 @@ public void saveLignes(Long bordereauId, List<InventaireBordereauLigneUpdateRequ
 
     private BigDecimal nvl(BigDecimal value) {
         return value != null ? value : BigDecimal.ZERO;
+    }
+
+
+
+       public List<InventaireBordereauResponse> getBordereauxByInventaire(Long inventaireId) {
+        return bordereauRepository.findByInventaireId(inventaireId)
+                .stream()
+                .map(b -> mapBordereauToResponse(b, bordereauLigneRepository.findByBordereauId(b.getId()).size()))
+                .toList();
+    }
+
+
+
+    public List<InventaireBordereauLigneResponse> getLignesByBordereau(Long bordereauId) {
+        return bordereauLigneRepository.findByBordereauId(bordereauId)
+                .stream()
+                .map(this::mapLigneToResponse)
+                .toList();
     }
 }

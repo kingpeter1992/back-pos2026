@@ -1,9 +1,13 @@
 package com.king.pos.ImplementServices;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+
+import org.hibernate.mapping.Map;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import com.king.pos.Dao.ProduitRepository;
@@ -12,6 +16,10 @@ import com.king.pos.Dao.VenteRepository;
 import com.king.pos.Dto.AnnulationVenteRequest;
 import com.king.pos.Dto.LigneVenteRequest;
 import com.king.pos.Dto.LotConsommationResult;
+import com.king.pos.Dto.RapportVenteDetailResponse;
+import com.king.pos.Dto.RapportVenteFilterRequest;
+import com.king.pos.Dto.RapportVenteKpiResponse;
+import com.king.pos.Dto.RapportVentePosResponse;
 import com.king.pos.Dto.VenteRequest;
 import com.king.pos.Dto.Response.VenteLigneResponse;
 import com.king.pos.Dto.Response.VenteResponse;
@@ -45,115 +53,126 @@ public class VenteServiceImpl implements VenteService {
     private final VenteLotConsommationService venteLotConsommationService;
     private final VenteLigneRepository ligneVenteRepository;
 
-    @Override
-    public VenteResponse enregistrerVente(VenteRequest request) {
-        validateRequest(request);
+@Override
+public VenteResponse enregistrerVente(VenteRequest request) {
+    validateRequest(request);
 
-        Depot depot = depotRepository.findById(request.getDepotId())
-                .orElseThrow(() -> new ResourceNotFoundException("Dépôt introuvable : " + request.getDepotId()));
+    Depot depot = depotRepository.findById(request.getDepotId())
+            .orElseThrow(() -> new ResourceNotFoundException(
+                    "Dépôt introuvable : " + request.getDepotId()));
 
-        Vente vente = Vente.builder()
-                .ticketNumero(trimToNull(request.getTicketNumero()))
-                .clientNom(hasText(request.getClientNom()) ? request.getClientNom().trim() : "CLIENT DIVERS")
-                .caissier(trimToNull(request.getCaissier()))
-                .modePaiement(request.getModePaiement())
-                .montantRecu(nvl(request.getMontantRecu()))
-                .monnaie(nvl(request.getMonnaie()))
-                .totalHT(BigDecimal.ZERO)
-                .totalRemise(BigDecimal.ZERO)
-                .totalTTC(BigDecimal.ZERO)
-                .statut(StatutVente.VALIDE)
-                .depot(depot)
-                .devise(hasText(request.getDevise()) ? request.getDevise().trim() : "CDF")
+    Vente vente = Vente.builder()
+            .ticketNumero(trimToNull(request.getTicketNumero()))
+            .clientNom(hasText(request.getClientNom())
+                    ? request.getClientNom().trim()
+                    : "CLIENT DIVERS")
+            .caissier(trimToNull(request.getCaissier()))
+            .modePaiement(request.getModePaiement())
+            .devise(request.getDevise())
+            .tauxChange(nvl(request.getTauxChange()))
+
+            .montantRecu(nvl(request.getMontantRecu()))
+            .monnaie(nvl(request.getMonnaie()))
+
+            .sousTotalCDF(nvl(request.getSousTotalCDF()))
+            .totalRemiseCDF(nvl(request.getTotalRemiseCDF()))
+            .totalGeneralCDF(nvl(request.getTotalGeneralCDF()))
+            .montantRecuCDF(nvl(request.getMontantRecuCDF()))
+            .monnaieCDF(nvl(request.getMonnaieCDF()))
+
+            .sousTotalUSD(nvl(request.getSousTotalUSD()))
+            .totalRemiseUSD(nvl(request.getTotalRemiseUSD()))
+            .totalGeneralUSD(nvl(request.getTotalGeneralUSD()))
+            .montantRecuUSD(nvl(request.getMontantRecuUSD()))
+            .monnaieUSD(nvl(request.getMonnaieUSD()))
+
+            .totalHT(nvl(request.getSousTotal()))
+            .totalRemise(nvl(request.getTotalRemise()))
+            .totalTTC(nvl(request.getTotalGeneral()))
+
+            .statut(StatutVente.VALIDE)
+            .depot(depot)
+            .build();
+
+    List<LigneVente> lignes = new ArrayList<>();
+
+    for (LigneVenteRequest lr : request.getLignes()) {
+
+        Produit produit = produitRepository.findById(lr.getProduitId())
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Produit introuvable : " + lr.getProduitId()));
+
+        if (!Boolean.TRUE.equals(produit.getActif())) {
+            throw new BusinessException("Produit inactif : " + produit.getNom());
+        }
+
+        LigneVente ligne = LigneVente.builder()
+                .vente(vente)
+                .produit(produit)
+                .quantite(nvl(lr.getQuantite()))
+
+                .prixUnitaire(nvl(lr.getPrix()))
+                .remise(nvl(lr.getRemise()))
+                .sousTotal(nvl(lr.getTotal()))
+
+                .prixCDF(nvl(lr.getPrixCDF()))
+                .remiseCDF(nvl(lr.getRemiseCDF()))
+                .totalCDF(nvl(lr.getTotalCDF()))
+
+                .prixUSD(nvl(lr.getPrixUSD()))
+                .remiseUSD(nvl(lr.getRemiseUSD()))
+                .totalUSD(nvl(lr.getTotalUSD()))
+
+                .tauxChange(nvl(lr.getTauxChange()))
                 .build();
 
-        List<LigneVente> lignes = new ArrayList<>();
-        BigDecimal sousTotalGlobal = BigDecimal.ZERO;
-        BigDecimal remiseGlobale = BigDecimal.ZERO;
-        BigDecimal totalGeneral = BigDecimal.ZERO;
-
-        for (LigneVenteRequest ligneRequest : request.getLignes()) {
-            Produit produit = produitRepository.findById(ligneRequest.getProduitId())
-                    .orElseThrow(() -> new ResourceNotFoundException(
-                            "Produit introuvable : " + ligneRequest.getProduitId()));
-
-            if (!Boolean.TRUE.equals(produit.getActif())) {
-                throw new BusinessException("Produit inactif : " + produit.getNom());
-            }
-
-            if (ligneRequest.getQuantite() == null || ligneRequest.getQuantite().compareTo(BigDecimal.ZERO) <= 0) {
-                throw new BusinessException(
-                        "La quantité doit être supérieure à 0 pour le produit : " + produit.getNom());
-            }
-
-            BigDecimal quantite = nvl(ligneRequest.getQuantite());
-            BigDecimal prix = nvl(ligneRequest.getPrix());
-            BigDecimal remise = nvl(ligneRequest.getRemise());
-
-            if (prix.compareTo(BigDecimal.ZERO) <= 0) {
-                throw new BusinessException("Le prix doit être supérieur à zéro pour le produit : " + produit.getNom());
-            }
-
-            BigDecimal montantBrutLigne = prix.multiply(quantite);
-            BigDecimal totalLigne = montantBrutLigne.subtract(remise);
-
-            if (totalLigne.compareTo(BigDecimal.ZERO) < 0) {
-                throw new BusinessException(
-                        "Le total de ligne ne peut pas être négatif pour le produit : " + produit.getNom());
-            }
-
-            LigneVente ligne = LigneVente.builder()
-                    .vente(vente)
-                    .produit(produit)
-                    .quantite(ligneRequest.getQuantite())
-                    .prixUnitaire(prix)
-                    .remise(remise)
-                    .sousTotal(totalLigne)
-                    .build();
-
-            lignes.add(ligne);
-
-            sousTotalGlobal = sousTotalGlobal.add(montantBrutLigne);
-            remiseGlobale = remiseGlobale.add(remise);
-            totalGeneral = totalGeneral.add(totalLigne);
-        }
-
-        vente.setLignes(lignes);
-        vente.setTotalHT(sousTotalGlobal);
-        vente.setTotalRemise(remiseGlobale);
-        vente.setTotalTTC(totalGeneral);
-
-        Vente saved = venteRepository.save(vente);
-
-        for (LigneVente ligne : saved.getLignes()) {
-            BigDecimal quantiteVendue = (ligne.getQuantite());
-
-            List<LotConsommationResult> consommations = sortieStockLotService.consommerEnFefo(
-                    ligne.getProduit(),
-                    saved.getDepot(),
-                    quantiteVendue);
-
-            venteLotConsommationService.enregistrerConsommations(saved, ligne, consommations);
-
-            transactionStockService.appliquerTransaction(
-                    TransactionStockRequest.builder()
-                            .typeTransaction(TypeMouvementStock.VENTE_SORTIE)
-                            .produit(ligne.getProduit())
-                            .depot(saved.getDepot())
-                            .quantite(quantiteVendue)
-                            .prixUnitaire(nvl(ligne.getPrixUnitaire()))
-                            .fraisUnitaire(BigDecimal.ZERO)
-                            .coutUnitaireFinal(BigDecimal.ZERO)
-                            .referenceDocument(saved.getTicketNumero())
-                            .sourceDocument("VENTE")
-                            .sourceDocumentId(saved.getId())
-                            .libelle("Sortie stock après vente POS - Ticket " + saved.getTicketNumero())
-                            .utilisateur(saved.getCaissier())
-                            .build());
-        }
-
-        return mapToResponse(saved);
+        lignes.add(ligne);
     }
+
+    vente.setLignes(lignes);
+
+    Vente saved = venteRepository.save(vente);
+
+    appliquerSortieStock(saved);
+
+    return mapToResponse(saved);
+}
+private void appliquerSortieStock(Vente saved) {
+    for (LigneVente ligne : saved.getLignes()) {
+
+        BigDecimal quantiteVendue = nvl(ligne.getQuantite());
+
+        List<LotConsommationResult> consommations =
+                sortieStockLotService.consommerEnFefo(
+                        ligne.getProduit(),
+                        saved.getDepot(),
+                        quantiteVendue
+                );
+
+        venteLotConsommationService.enregistrerConsommations(
+                saved,
+                ligne,
+                consommations
+        );
+
+        transactionStockService.appliquerTransaction(
+                TransactionStockRequest.builder()
+                        .typeTransaction(TypeMouvementStock.VENTE_SORTIE)
+                        .produit(ligne.getProduit())
+                        .depot(saved.getDepot())
+                        .quantite(quantiteVendue)
+                        .prixUnitaire(nvl(ligne.getPrixUnitaire()))
+                        .fraisUnitaire(BigDecimal.ZERO)
+                        .coutUnitaireFinal(BigDecimal.ZERO)
+                        .referenceDocument(saved.getTicketNumero())
+                        .sourceDocument("VENTE")
+                        .sourceDocumentId(saved.getId())
+                        .libelle("Sortie stock après vente POS - Ticket " + saved.getTicketNumero())
+                        .utilisateur(saved.getCaissier())
+                        .build()
+        );
+    }
+}
 
     @Override
     public List<VenteResponse> getAllVente() {
@@ -163,140 +182,157 @@ public class VenteServiceImpl implements VenteService {
                 .toList();
     }
 
-    @Override
-    @Transactional
-    public VenteResponse annulerVente(Long venteId, AnnulationVenteRequest request) {
+   @Override
+@Transactional
+public VenteResponse annulerVente(Long venteId, AnnulationVenteRequest request) {
 
-            try {
-        // ton code ici
-   
-        if (venteId == null) {
-            throw new BusinessException("Le numéro de vente est obligatoire.");
-        }
-
-        Vente venteOriginale = venteRepository.findById(venteId)
-                .orElseThrow(() -> new ResourceNotFoundException("Vente introuvable : " + venteId));
-
-        if (request == null || request.getCommentaire() == null || request.getCommentaire().trim().isEmpty()) {
-            throw new BusinessException("Le commentaire d'annulation est obligatoire.");
-        }
-
-        if (venteOriginale.getLignes() == null || venteOriginale.getLignes().isEmpty()) {
-            throw new BusinessException("Impossible d'effectuer un retour sur une vente sans lignes.");
-        }
-
-        if (venteOriginale.getDepot() == null) {
-            throw new BusinessException("Aucun dépôt n'est associé à cette vente.");
-        }
-
-        if (venteRepository.existsByVenteOrigineId(venteOriginale.getId())) {
-            throw new BusinessException("Un retour a déjà été généré pour cette vente.");
-        }
-
-        List<VenteLotConsommation> consommations = venteLotConsommationService.getByVenteId(venteOriginale.getId());
-
-        if (consommations.isEmpty()) {
-            throw new BusinessException(
-                    "Retour de vente impossible : aucune traçabilité de lots n'a été trouvée pour cette vente.");
-        }
-
-        // 1. Remettre les lots en stock
-        sortieStockLotService.remettreEnStockLotsAnnules(consommations);
-
-        // 2. Remettre le stock global
-        for (LigneVente ligne : venteOriginale.getLignes()) {
-            BigDecimal quantite = nvl(ligne.getQuantite());
-
-            transactionStockService.appliquerTransaction(
-                    TransactionStockRequest.builder()
-                            .typeTransaction(TypeMouvementStock.ANNULATION_VENTE_ENTREE)
-                            .produit(ligne.getProduit())
-                            .depot(venteOriginale.getDepot())
-                            .quantite(quantite)
-                            .prixUnitaire(nvl(ligne.getPrixUnitaire()))
-                            .fraisUnitaire(BigDecimal.ZERO)
-                            .coutUnitaireFinal(nvl(ligne.getPrixUnitaire()))
-                            .referenceDocument(venteOriginale.getTicketNumero())
-                            .sourceDocument("RETOUR_VENTE")
-                            .sourceDocumentId(venteOriginale.getId())
-                            .libelle("Retour stock après annulation vente - Ticket " + venteOriginale.getTicketNumero())
-                            .utilisateur(venteOriginale.getCaissier())
-                            .build());
-        }
-
-        // 3. Créer la nouvelle vente de retour
-        Vente retour = new Vente();
-        retour.setDateVente(LocalDateTime.now());
-        retour.setTicketNumero(genererNumeroRetour(venteOriginale.getTicketNumero()));
-        retour.setClientNom(venteOriginale.getClientNom());
-        retour.setCaissier(venteOriginale.getCaissier());
-        retour.setDepot(venteOriginale.getDepot());
-        retour.setDevise(venteOriginale.getDevise());
-        retour.setTaux(nvl(venteOriginale.getTaux()));
-        retour.setModePaiement(venteOriginale.getModePaiement());
-        retour.setStatut(StatutVente.RETOURNEE);
-        retour.setVenteOrigine(venteOriginale);
-        retour.setCommentaireAnnulation(request.getCommentaire().trim());
-
-        // Montants négatifs
-        retour.setTotalHT(nvl(venteOriginale.getTotalHT()).negate());
-        retour.setTotalRemise(nvl(venteOriginale.getTotalRemise()).negate());
-        retour.setTotalTva(nvl(venteOriginale.getTotalTva()).negate());
-        retour.setTotalTTC(nvl(venteOriginale.getTotalTTC()).negate());
-        retour.setTotal(nvl(venteOriginale.getTotal()).negate());
-        retour.setMontantRecu(nvl(venteOriginale.getMontantRecu()).negate());
-        retour.setMonnaie(nvl(venteOriginale.getMonnaie()).negate());
-
-        Vente retourSaved = venteRepository.save(retour);
-
-        // 4. Créer les lignes retour + consommations retour négatives
-        List<LigneVente> lignesRetour = new ArrayList<>();
-
-        for (LigneVente ligneOriginale : venteOriginale.getLignes()) {
-            LigneVente ligneRetour = new LigneVente();
-            ligneRetour.setVente(retourSaved);
-            ligneRetour.setProduit(ligneOriginale.getProduit());
-            ligneRetour.setTarifVente(ligneOriginale.getTarifVente());
-
-            ligneRetour.setQuantite(nvl(ligneOriginale.getQuantite()).negate());
-            ligneRetour.setPrixUnitaire(nvl(ligneOriginale.getPrixUnitaire()));
-            ligneRetour.setRemise(nvl(ligneOriginale.getRemise()).negate());
-            ligneRetour.setSousTotal(nvl(ligneOriginale.getSousTotal()).negate());
-
-            ligneRetour.setPmpAuMomentVente(nvl(ligneOriginale.getPmpAuMomentVente()));
-            ligneRetour.setTauxMarge(nvl(ligneOriginale.getTauxMarge()));
-            ligneRetour.setTauxRemiseMax(nvl(ligneOriginale.getTauxRemiseMax()));
-            ligneRetour.setTauxRemiseAppliquee(nvl(ligneOriginale.getTauxRemiseAppliquee()));
-            ligneRetour.setPrixBrut(nvl(ligneOriginale.getPrixBrut()));
-            ligneRetour.setMontantRemise(nvl(ligneOriginale.getMontantRemise()).negate());
-            ligneRetour.setPrixUnitaireVente(nvl(ligneOriginale.getPrixUnitaireVente()));
-            ligneRetour.setTauxTva(nvl(ligneOriginale.getTauxTva()));
-
-            LigneVente ligneRetourSaved = ligneVenteRepository.save(ligneRetour);
-            lignesRetour.add(ligneRetourSaved);
-
-            List<VenteLotConsommation> consommationsLigneOriginale = consommations.stream()
-                    .filter(c -> c.getLigneVente() != null
-                            && c.getLigneVente().getId() != null
-                            && c.getLigneVente().getId().equals(ligneOriginale.getId()))
-                    .toList();
-
-            if (!consommationsLigneOriginale.isEmpty()) {
-                venteLotConsommationService.enregistrerConsommationsRetour(
-                        retourSaved,
-                        ligneRetourSaved,
-                        consommationsLigneOriginale);
-            }
-        }
-
-        retourSaved.setLignes(lignesRetour);
-
-        return mapToResponse(retourSaved);
-         } catch (Exception e) {
-        e.printStackTrace();
-        throw e;
+    if (venteId == null) {
+        throw new BusinessException("Le numéro de vente est obligatoire.");
     }
+
+    Vente venteOriginale = venteRepository.findById(venteId)
+            .orElseThrow(() -> new ResourceNotFoundException("Vente introuvable : " + venteId));
+
+    if (request == null || request.getCommentaire() == null || request.getCommentaire().trim().isEmpty()) {
+        throw new BusinessException("Le commentaire d'annulation est obligatoire.");
     }
+
+    if (venteOriginale.getLignes() == null || venteOriginale.getLignes().isEmpty()) {
+        throw new BusinessException("Impossible d'annuler une vente sans lignes.");
+    }
+
+    if (venteOriginale.getDepot() == null) {
+        throw new BusinessException("Aucun dépôt n'est associé à cette vente.");
+    }
+
+    if (venteRepository.existsByVenteOrigineId(venteOriginale.getId())) {
+        throw new BusinessException("Un retour a déjà été généré pour cette vente.");
+    }
+
+    List<VenteLotConsommation> consommations =
+            venteLotConsommationService.getByVenteId(venteOriginale.getId());
+
+    if (consommations.isEmpty()) {
+        throw new BusinessException(
+                "Retour de vente impossible : aucune traçabilité de lots n'a été trouvée pour cette vente.");
+    }
+
+    sortieStockLotService.remettreEnStockLotsAnnules(consommations);
+
+    for (LigneVente ligne : venteOriginale.getLignes()) {
+        BigDecimal quantite = nvl(ligne.getQuantite());
+
+        transactionStockService.appliquerTransaction(
+                TransactionStockRequest.builder()
+                        .typeTransaction(TypeMouvementStock.ANNULATION_VENTE_ENTREE)
+                        .produit(ligne.getProduit())
+                        .depot(venteOriginale.getDepot())
+                        .quantite(quantite)
+                        .prixUnitaire(nvl(ligne.getPrixUnitaire()))
+                        .fraisUnitaire(BigDecimal.ZERO)
+                        .coutUnitaireFinal(nvl(ligne.getPrixUnitaire()))
+                        .referenceDocument(venteOriginale.getTicketNumero())
+                        .sourceDocument("RETOUR_VENTE")
+                        .sourceDocumentId(venteOriginale.getId())
+                        .libelle("Retour stock après annulation vente - Ticket " + venteOriginale.getTicketNumero())
+                        .utilisateur(venteOriginale.getCaissier())
+                        .build()
+        );
+    }
+
+    Vente retour = Vente.builder()
+            .dateVente(LocalDateTime.now())
+            .ticketNumero(genererNumeroRetour(venteOriginale.getTicketNumero()))
+            .clientNom(venteOriginale.getClientNom())
+            .caissier(venteOriginale.getCaissier())
+            .depot(venteOriginale.getDepot())
+            .devise(venteOriginale.getDevise())
+            .tauxChange(nvl(venteOriginale.getTauxChange()))
+            .modePaiement(venteOriginale.getModePaiement())
+            .statut(StatutVente.RETOURNEE)
+            .venteOrigine(venteOriginale)
+            .commentaireAnnulation(request.getCommentaire().trim())
+
+            .totalHT(nvl(venteOriginale.getTotalHT()).negate())
+            .totalRemise(nvl(venteOriginale.getTotalRemise()).negate())
+            .totalTTC(nvl(venteOriginale.getTotalTTC()).negate())
+            .montantRecu(nvl(venteOriginale.getMontantRecu()).negate())
+            .monnaie(nvl(venteOriginale.getMonnaie()).negate())
+
+            .sousTotalCDF(nvl(venteOriginale.getSousTotalCDF()).negate())
+            .totalRemiseCDF(nvl(venteOriginale.getTotalRemiseCDF()).negate())
+            .totalGeneralCDF(nvl(venteOriginale.getTotalGeneralCDF()).negate())
+            .montantRecuCDF(nvl(venteOriginale.getMontantRecuCDF()).negate())
+            .monnaieCDF(nvl(venteOriginale.getMonnaieCDF()).negate())
+
+            .sousTotalUSD(nvl(venteOriginale.getSousTotalUSD()).negate())
+            .totalRemiseUSD(nvl(venteOriginale.getTotalRemiseUSD()).negate())
+            .totalGeneralUSD(nvl(venteOriginale.getTotalGeneralUSD()).negate())
+            .montantRecuUSD(nvl(venteOriginale.getMontantRecuUSD()).negate())
+            .monnaieUSD(nvl(venteOriginale.getMonnaieUSD()).negate())
+            .build();
+
+    Vente retourSaved = venteRepository.save(retour);
+
+    List<LigneVente> lignesRetour = new ArrayList<>();
+
+    for (LigneVente ligneOriginale : venteOriginale.getLignes()) {
+
+        LigneVente ligneRetour = LigneVente.builder()
+                .vente(retourSaved)
+                .produit(ligneOriginale.getProduit())
+                .tarifVente(ligneOriginale.getTarifVente())
+
+                .quantite(nvl(ligneOriginale.getQuantite()).negate())
+                .prixUnitaire(nvl(ligneOriginale.getPrixUnitaire()))
+                .remise(nvl(ligneOriginale.getRemise()).negate())
+                .sousTotal(nvl(ligneOriginale.getSousTotal()).negate())
+
+                .prixCDF(nvl(ligneOriginale.getPrixCDF()))
+                .remiseCDF(nvl(ligneOriginale.getRemiseCDF()).negate())
+                .totalCDF(nvl(ligneOriginale.getTotalCDF()).negate())
+
+                .prixUSD(nvl(ligneOriginale.getPrixUSD()))
+                .remiseUSD(nvl(ligneOriginale.getRemiseUSD()).negate())
+                .totalUSD(nvl(ligneOriginale.getTotalUSD()).negate())
+
+                .tauxChange(nvl(ligneOriginale.getTauxChange()))
+
+                .pmpAuMomentVente(nvl(ligneOriginale.getPmpAuMomentVente()))
+                .tauxMarge(nvl(ligneOriginale.getTauxMarge()))
+                .tauxRemiseMax(nvl(ligneOriginale.getTauxRemiseMax()))
+                .tauxRemiseAppliquee(nvl(ligneOriginale.getTauxRemiseAppliquee()))
+                .prixBrut(nvl(ligneOriginale.getPrixBrut()))
+                .montantRemise(nvl(ligneOriginale.getMontantRemise()).negate())
+                .prixUnitaireVente(nvl(ligneOriginale.getPrixUnitaireVente()))
+                .tauxTva(nvl(ligneOriginale.getTauxTva()))
+                .build();
+
+        LigneVente ligneRetourSaved = ligneVenteRepository.save(ligneRetour);
+        lignesRetour.add(ligneRetourSaved);
+
+        List<VenteLotConsommation> consommationsLigneOriginale = consommations.stream()
+                .filter(c -> c.getLigneVente() != null
+                        && c.getLigneVente().getId() != null
+                        && c.getLigneVente().getId().equals(ligneOriginale.getId()))
+                .toList();
+
+        if (!consommationsLigneOriginale.isEmpty()) {
+            venteLotConsommationService.enregistrerConsommationsRetour(
+                    retourSaved,
+                    ligneRetourSaved,
+                    consommationsLigneOriginale
+            );
+        }
+    }
+
+    retourSaved.setLignes(lignesRetour);
+
+    venteOriginale.setStatut(StatutVente.ANNULEE);
+    venteRepository.save(venteOriginale);
+
+    return mapToResponse(retourSaved);
+}
 
     private BigDecimal nvl(BigDecimal value) {
         return value != null ? value : BigDecimal.ZERO;
@@ -340,6 +376,18 @@ public class VenteServiceImpl implements VenteService {
                 .devise(vente.getDevise() != null ? vente.getDevise() : "USD")
                 .statut(vente.getStatut() != null ? vente.getStatut().name() : null)
                 .lignes(lignes)
+                .tauxChange(nvl(vente.getTauxChange()))
+                .sousTotalCDF(nvl(vente.getSousTotalCDF()))
+                .totalRemiseCDF(nvl(vente.getTotalRemiseCDF()))
+                .totalGeneralCDF(nvl(vente.getTotalGeneralCDF()))
+                .montantRecuCDF(nvl(vente.getMontantRecuCDF()))
+                .monnaieCDF(nvl(vente.getMonnaieCDF()))
+
+                .sousTotalUSD(nvl(vente.getSousTotalUSD()))
+                .totalRemiseUSD(nvl(vente.getTotalRemiseUSD()))
+                .totalGeneralUSD(nvl(vente.getTotalGeneralUSD()))
+                .montantRecuUSD(nvl(vente.getMontantRecuUSD()))
+                .monnaieUSD(nvl(vente.getMonnaieUSD()))
                 .build();
     }
 
@@ -371,4 +419,192 @@ public class VenteServiceImpl implements VenteService {
         }
         return value.trim();
     }
+@Transactional
+public RapportVentePosResponse genererRapportVentes(RapportVenteFilterRequest filter) {
+
+                String caissier = hasText(filter.getCaissier()) ? filter.getCaissier().trim() : null;
+                String devise = hasText(filter.getDevise()) ? filter.getDevise().trim() : null;
+
+                List<Vente> ventes = venteRepository.findRapportVentes(
+                        filter.getDateDebut(),
+                        filter.getDateFin(),
+                        filter.getDepotId(),
+                        caissier,
+                        devise
+                );
+
+    List<RapportVenteDetailResponse> details = new ArrayList<>();
+
+    java.util.Map<String, List<RapportVenteDetailResponse>> grouped = new HashMap<>();
+
+    for (Vente vente : ventes) {
+
+        for (LigneVente ligne : vente.getLignes()) {
+
+            BigDecimal quantite = nvl(ligne.getQuantite());
+            BigDecimal totalNet = nvl(ligne.getSousTotal());
+
+            BigDecimal pmp = nvl(ligne.getPmpAuMomentVente());
+            BigDecimal totalPmp = pmp.multiply(quantite);
+
+            BigDecimal marge = totalNet.subtract(totalPmp);
+
+            BigDecimal pourcentageMarge = BigDecimal.ZERO;
+
+            if (totalNet.compareTo(BigDecimal.ZERO) > 0) {
+                pourcentageMarge = marge.multiply(BigDecimal.valueOf(100))
+                        .divide(totalNet, 2, RoundingMode.HALF_UP);
+            }
+
+            String cst = ligne.getProduit().getCategorie() != null
+                    ? ligne.getProduit().getCategorie().getId().toString()
+                    : "N/A";
+
+            RapportVenteDetailResponse detail = RapportVenteDetailResponse.builder()
+                    .succursale(vente.getDepot().getNom())
+                    .serviceCredite("POS")
+                    .module("VENTE_POS")
+                    .natureOperation(vente.getStatut().name())
+
+                    .numeroCC(vente.getTicketNumero())
+                    .dateCC(vente.getDateVente())
+
+                    .typeCommandeOuOR(vente.getModePaiement().name())
+                    .libelleType("VENTE POS")
+
+                    .nomClient(vente.getClientNom())
+                    .tarif(ligne.getTarifVente() != null ? ligne.getTarifVente().getCode() : null)
+                    .operateur(vente.getCaissier())
+
+                    .quantiteCommandee(quantite)
+                    .quantiteFacturee(quantite)
+
+                    .numeroFacture(vente.getTicketNumero())
+                    .dateFacture(vente.getDateVente())
+
+                    .cst(cst)
+                    .reference(ligne.getProduit().getCodeBarres())
+                    .designation(ligne.getProduit().getNom())
+
+                    .coursDevise(nvl(vente.getTauxChange()))
+
+                    .prixBrut(nvl(ligne.getPrixUnitaire()))
+                    .remise(nvl(ligne.getRemise()))
+                    .prixNet(nvl(ligne.getPrixUnitaire()).subtract(nvl(ligne.getRemise())))
+
+                    .pmp(pmp)
+
+                    .totalNet(totalNet)
+                    .totalPmp(totalPmp)
+
+                    .marge(marge)
+                    .pourcentageMarge(pourcentageMarge)
+
+                    .tauxTva(nvl(ligne.getTauxTva()))
+                    .totalTtc(totalNet)
+                    .build();
+
+            details.add(detail);
+
+            grouped.computeIfAbsent(cst, k -> new ArrayList<>()).add(detail);
+        }
+    }
+
+    List<RapportVenteKpiResponse> kpis = new ArrayList<>();
+
+    for (var entry : grouped.entrySet()) {
+
+        String cst = entry.getKey();
+        List<RapportVenteDetailResponse> lignes = entry.getValue();
+
+        BigDecimal totalNet = lignes.stream()
+                .map(RapportVenteDetailResponse::getTotalNet)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal totalPmp = lignes.stream()
+                .map(RapportVenteDetailResponse::getTotalPmp)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal marge = totalNet.subtract(totalPmp);
+
+        BigDecimal totalNetCDF = lignes.stream()
+                .map(l -> l.getTotalNet().multiply(l.getCoursDevise()))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal totalPmpCDF = lignes.stream()
+                .map(l -> l.getTotalPmp().multiply(l.getCoursDevise()))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal margeCDF = totalNetCDF.subtract(totalPmpCDF);
+
+        BigDecimal pct = BigDecimal.ZERO;
+
+        if (totalNet.compareTo(BigDecimal.ZERO) > 0) {
+            pct = marge.multiply(BigDecimal.valueOf(100))
+                    .divide(totalNet, 2, RoundingMode.HALF_UP);
+        }
+
+        kpis.add(RapportVenteKpiResponse.builder()
+                .cst(cst)
+                .totalNet(totalNet)
+                .totalPmp(totalPmp)
+                .marge(marge)
+                .totalNetCDF(totalNetCDF)
+                .totalPmpCDF(totalPmpCDF)
+                .margeCDF(margeCDF)
+                .pourcentageMarge(pct)
+                .build());
+    }
+
+    RapportVenteKpiResponse totalGeneral = buildTotalGeneral(kpis);
+
+    return RapportVentePosResponse.builder()
+            .kpis(kpis)
+            .details(details)
+            .totalGeneral(totalGeneral)
+            .build();
+}
+
+
+
+private RapportVenteKpiResponse buildTotalGeneral(List<RapportVenteKpiResponse> kpis) {
+
+    BigDecimal totalNet = kpis.stream()
+            .map(RapportVenteKpiResponse::getTotalNet)
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+    BigDecimal totalPmp = kpis.stream()
+            .map(RapportVenteKpiResponse::getTotalPmp)
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+    BigDecimal marge = totalNet.subtract(totalPmp);
+
+    BigDecimal totalNetCDF = kpis.stream()
+            .map(RapportVenteKpiResponse::getTotalNetCDF)
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+    BigDecimal totalPmpCDF = kpis.stream()
+            .map(RapportVenteKpiResponse::getTotalPmpCDF)
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+    BigDecimal margeCDF = totalNetCDF.subtract(totalPmpCDF);
+
+    BigDecimal pct = BigDecimal.ZERO;
+
+    if (totalNet.compareTo(BigDecimal.ZERO) > 0) {
+        pct = marge.multiply(BigDecimal.valueOf(100))
+                .divide(totalNet, 2, RoundingMode.HALF_UP);
+    }
+
+    return RapportVenteKpiResponse.builder()
+            .cst("Total général")
+            .totalNet(totalNet)
+            .totalPmp(totalPmp)
+            .marge(marge)
+            .totalNetCDF(totalNetCDF)
+            .totalPmpCDF(totalPmpCDF)
+            .margeCDF(margeCDF)
+            .pourcentageMarge(pct)
+            .build();
+}
 }

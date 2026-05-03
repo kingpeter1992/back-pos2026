@@ -4,6 +4,8 @@ import lombok.*;
 
 import java.math.BigDecimal;
 
+import jakarta.persistence.Column;
+
 
 
 @Data
@@ -22,7 +24,7 @@ public class StockProduitView {
     private String nomDepot;
 
     private Long locatorId;
-private String locatorCode;
+    private String locatorCode;
 
     private BigDecimal quantiteDisponible;
     private BigDecimal pmp;
@@ -32,6 +34,17 @@ private String locatorCode;
     private BigDecimal stockMinimum;
 
     private String statutStock;
+    
+    private BigDecimal tauxChangeUtilise;
+
+    private BigDecimal pmpFc;
+
+    private BigDecimal pmpUsd;
+
+    private BigDecimal valeurStockFc;
+
+    private BigDecimal valeurStockUsd;
+
 
     // ===== TARIFICATION / MARGE =====
     private Long tarifVenteId;

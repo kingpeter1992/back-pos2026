@@ -62,4 +62,25 @@ public class LigneVente {
 
         @Column(precision = 18, scale = 2)
     private BigDecimal tauxTva;
+
+    @Column(precision = 19, scale = 6)
+private BigDecimal tauxChange;
+
+@Column(precision = 19, scale = 2)
+private BigDecimal prixCDF;
+
+@Column(precision = 19, scale = 2)
+private BigDecimal remiseCDF;
+
+@Column(precision = 19, scale = 2)
+private BigDecimal totalCDF;
+
+@Column(precision = 19, scale = 2)
+private BigDecimal prixUSD;
+
+@Column(precision = 19, scale = 2)
+private BigDecimal remiseUSD;
+
+@Column(precision = 19, scale = 2)
+private BigDecimal totalUSD;
 }

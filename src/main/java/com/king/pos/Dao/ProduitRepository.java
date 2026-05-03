@@ -2,6 +2,8 @@ package com.king.pos.Dao;
 
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import com.king.pos.Entitys.Produit;
 
@@ -22,5 +24,9 @@ public interface ProduitRepository extends JpaRepository<Produit, Long> {
             "produitFournisseurs.fournisseur"
     })
     Optional<Produit> findWithDetailsById(Long id);
+
+
+       @Query("select p.codeBarres from Produit p where p.id = :id")
+    Optional<String> findCodeBarresById(@Param("id") Long id);
     
 }

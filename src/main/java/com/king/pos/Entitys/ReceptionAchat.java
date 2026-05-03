@@ -97,6 +97,30 @@ public class ReceptionAchat {
     private LocalDateTime dateCreation;
     private LocalDateTime dateModification;
 
+    @Column(precision = 18, scale = 6)
+private BigDecimal tauxChangeUtilise;
+
+@Column(precision = 18, scale = 2)
+private BigDecimal montantMarchandiseFc;
+
+@Column(precision = 18, scale = 2)
+private BigDecimal montantMarchandiseUsd;
+
+@Column(precision = 18, scale = 2)
+private BigDecimal montantFraisFc;
+
+@Column(precision = 18, scale = 2)
+private BigDecimal montantFraisUsd;
+
+@Column(precision = 18, scale = 2)
+private BigDecimal montantTotalFc;
+
+@Column(precision = 18, scale = 2)
+private BigDecimal montantTotalUsd;
+
+@Column(length = 100)
+private String observateur;
+
     @OneToMany(mappedBy = "receptionAchat", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<ReceptionAchatLigne> lignes = new ArrayList<>();
@@ -122,6 +146,16 @@ public class ReceptionAchat {
     @PreUpdate
     public void preUpdate() {
         dateModification = LocalDateTime.now();
+        if (devise == null) devise = Devise.CDF;
+if (taux == null) taux = BigDecimal.ZERO;
+if (tauxChangeUtilise == null) tauxChangeUtilise = taux;
+
+if (montantMarchandiseFc == null) montantMarchandiseFc = BigDecimal.ZERO;
+if (montantMarchandiseUsd == null) montantMarchandiseUsd = BigDecimal.ZERO;
+if (montantFraisFc == null) montantFraisFc = BigDecimal.ZERO;
+if (montantFraisUsd == null) montantFraisUsd = BigDecimal.ZERO;
+if (montantTotalFc == null) montantTotalFc = BigDecimal.ZERO;
+if (montantTotalUsd == null) montantTotalUsd = BigDecimal.ZERO;
     }
 
     public BigDecimal calculTotalFrais() {

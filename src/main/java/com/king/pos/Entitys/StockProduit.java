@@ -5,14 +5,16 @@ import lombok.*;
 
 import java.time.LocalDateTime;
 
-
 import java.math.BigDecimal;
 
 @Entity
 @Getter
-@Setter @NoArgsConstructor @AllArgsConstructor @Builder
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 @Table(uniqueConstraints = {
-        @UniqueConstraint(columnNames = {"produit_id", "depot_id"})
+        @UniqueConstraint(columnNames = { "produit_id", "depot_id" })
 })
 public class StockProduit {
 
@@ -37,6 +39,20 @@ public class StockProduit {
     @Column(nullable = false, precision = 18, scale = 2)
     private BigDecimal valeurStock;
 
+    @Column(precision = 18, scale = 6)
+    private BigDecimal tauxChangeUtilise;
+
+    @Column(precision = 18, scale = 6)
+    private BigDecimal pmpFc;
+
+    @Column(precision = 18, scale = 6)
+    private BigDecimal pmpUsd;
+
+    @Column(precision = 18, scale = 2)
+    private BigDecimal valeurStockFc;
+
+    @Column(precision = 18, scale = 2)
+    private BigDecimal valeurStockUsd;
 
     private LocalDateTime dateDerniereEntree;
     private LocalDateTime dateDerniereSortie;
@@ -46,10 +62,25 @@ public class StockProduit {
 
     @PrePersist
     public void prePersist() {
-        if (quantiteDisponible == null) quantiteDisponible = BigDecimal.ZERO;
-        if (pmp == null) pmp = BigDecimal.ZERO;
-        if (valeurStock == null) valeurStock = BigDecimal.ZERO;
-        if (dateCreation == null) dateCreation = LocalDateTime.now();
+        if (quantiteDisponible == null)
+            quantiteDisponible = BigDecimal.ZERO;
+        if (pmp == null)
+            pmp = BigDecimal.ZERO;
+        if (valeurStock == null)
+            valeurStock = BigDecimal.ZERO;
+        if (dateCreation == null)
+            dateCreation = LocalDateTime.now();
+
+        if (tauxChangeUtilise == null)
+            tauxChangeUtilise = BigDecimal.ZERO;
+        if (pmpFc == null)
+            pmpFc = pmp != null ? pmp : BigDecimal.ZERO;
+        if (pmpUsd == null)
+            pmpUsd = BigDecimal.ZERO;
+        if (valeurStockFc == null)
+            valeurStockFc = valeurStock != null ? valeurStock : BigDecimal.ZERO;
+        if (valeurStockUsd == null)
+            valeurStockUsd = BigDecimal.ZERO;
     }
 
     @PreUpdate

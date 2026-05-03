@@ -26,44 +26,49 @@ import lombok.Setter;
 @Builder
 public class TransactionCaisse {
 
-  @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
-  private Long id;
+ @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
-  @Enumerated(EnumType.STRING)
-  private TypeTransaction type; // ENCAISSEMENT, DECAISSEMENT
+    @Enumerated(EnumType.STRING)
+    private TypeTransaction type;
 
-  @Enumerated(EnumType.STRING)
-  private Devise devise; // USD, CDF
-  private double montant;
-@ManyToOne
-@JoinColumn(name = "categorie_id")
-private Categorie categorie;
+    @Enumerated(EnumType.STRING)
+    private Devise devise;
 
+    private double montant;
 
-  @Enumerated(EnumType.STRING)
-  private ModePaiement modePaiement;
+    private String category;
 
-  private String description;
-  private String reference;
+    @Enumerated(EnumType.STRING)
+    private ModePaiement modePaiement;
 
-  private double soldeAvant;
+    private String description;
 
-  private double soldeApres;
+    private String reference;
 
-  private String sens; // + / -
-  private String userId;
+    private double soldeAvant;
 
-  private LocalDateTime dateTransaction;
+    private double soldeApres;
 
-  @ManyToOne(optional = false)
-  @JoinColumn(name="session_id")
-  private CaisseSession session;
+    private String sens;
 
-  @ManyToOne @JoinColumn(name="client_id")
-  private Client client;
+    private String userId;
 
+    private LocalDateTime dateTransaction;
 
-  @ManyToOne
-@JoinColumn(name="caisse_id")
-private Caisse caisse;
+    private Double tauxChange;
+
+    private Double montantConvertiUSD;
+
+    private Double montantConvertiCDF;
+
+    @ManyToOne(optional = false)
+    @JoinColumn(name = "session_id")
+    private CaisseSession session;
+
+    @ManyToOne
+    @JoinColumn(name = "caisse_id")
+    private Caisse caisse;
+    
 }

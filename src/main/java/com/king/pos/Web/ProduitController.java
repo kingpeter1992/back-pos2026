@@ -2,6 +2,7 @@ package com.king.pos.Web;
 
 import lombok.RequiredArgsConstructor;
 
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -41,16 +42,23 @@ public class ProduitController {
         return produitService.findByCodeBarres(codeBarres);
     }
 
-@GetMapping("/{id}/barcode-image")
+@GetMapping(value = "/{id}/barcode-image", produces = MediaType.IMAGE_PNG_VALUE)
 public ResponseEntity<byte[]> barcodeImage(@PathVariable Long id) {
-    ProduitResponse produit = produitService.findById(id);
 
-    byte[] png = barcodeService.generateBarcodePng(produit.getCodeBarres(), 420, 120);
+    String codeBarres = produitService.getCodeBarresById(id);
+
+    if (codeBarres == null || codeBarres.trim().isEmpty()) {
+        return ResponseEntity.noContent().build();
+    }
+
+    byte[] png = barcodeService.generateBarcodePng(codeBarres.trim(), 420, 120);
 
     return ResponseEntity.ok()
-            .header("Content-Type", "image/png")
+            .contentType(MediaType.IMAGE_PNG)
             .body(png);
 }
+
+
     @GetMapping("/{id}")
     public ProduitResponse findById(@PathVariable Long id) {
         return produitService.findById(id);

@@ -30,6 +30,15 @@ public class StockLotResponse {
     private BigDecimal quantiteInitiale;
     private BigDecimal quantiteDisponible;
     private BigDecimal prixUnitaire;
+    private BigDecimal tauxChangeUtilise;
+    private BigDecimal prixUnitaireFc;
+    private BigDecimal prixUnitaireUsd;
+    private BigDecimal fraisUnitaireFc;
+    private BigDecimal fraisUnitaireUsd;
+    private BigDecimal coutUnitaireFinalFc;
+    private BigDecimal coutUnitaireFinalUsd;
+    private BigDecimal montantLigneFc;
+    private BigDecimal montantLigneUsd;
     private BigDecimal fraisUnitaire;
     private BigDecimal coutUnitaireFinal;
     private LocalDate dateEntree;

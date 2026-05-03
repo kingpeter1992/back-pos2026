@@ -27,6 +27,10 @@ public class ProduitRequest {
     @NotNull(message = "Le prix de vente est obligatoire")
     private BigDecimal prixVente;
 
+    private BigDecimal prixVenteFc;
+    private BigDecimal prixVenteUsd;
+    private BigDecimal tauxChangeUtilise;
+    
     @NotNull(message = "Le stock minimum est obligatoire")
     @Min(0)
     private BigDecimal stockMinimum;

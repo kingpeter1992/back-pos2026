@@ -5,7 +5,6 @@ import lombok.*;
 
 import java.math.BigDecimal;
 import java.util.List;
-
 @Getter
 @Setter
 @NoArgsConstructor
@@ -14,7 +13,12 @@ import java.util.List;
 public class ProvisionStockDashboardResponse {
 
     private BigDecimal valeurStockTotale;
+    private BigDecimal valeurStockTotaleFc;
+    private BigDecimal valeurStockTotaleUsd;
+
     private BigDecimal provisionTotale;
+    private BigDecimal provisionTotaleFc;
+    private BigDecimal provisionTotaleUsd;
 
     private Long nombreProduits;
     private Long nombreProduitsProvisionnes;

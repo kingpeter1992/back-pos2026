@@ -21,6 +21,7 @@ public interface StockRepository extends JpaRepository<StockProduit, Long> {
     Optional<StockProduit> findByProduitAndDepot(Produit produit, Depot depot);
 
     Optional<StockProduit> findByProduitIdAndDepotId(Long produitId, Long depotId);
+    
 
     @Query("""
         select coalesce(sum(sp.quantiteDisponible), 0)

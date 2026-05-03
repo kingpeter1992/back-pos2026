@@ -23,6 +23,13 @@ public class CommandeAchatResponse {
     private BigDecimal montantTotal;
     private Devise devise;
     private BigDecimal taux;
+
+        // NOUVEAU
+    private BigDecimal montantTotalFc;
+    private BigDecimal montantTotalUsd;
+    private BigDecimal tauxChangeUtilise;
+
+    
     private LocalDate dateCommande;
     private LocalDate datePrevue;
     private String fournisseurNom;
@@ -30,5 +37,6 @@ public class CommandeAchatResponse {
     private String observation;
     private StatutReceptionAchat positionLivraison;
     private String user;
+
     private List<CommandeAchatLigneResponse> lignes;
 }

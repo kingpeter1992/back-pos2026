@@ -25,6 +25,18 @@ public class ReceptionAchatResponse {
     private BigDecimal totalMarchandise;
     private BigDecimal totalFrais;
     private BigDecimal totalGeneral;
+    private BigDecimal tauxChangeUtilise;
+
+private BigDecimal montantMarchandiseFc;
+private BigDecimal montantMarchandiseUsd;
+
+private BigDecimal montantFraisFc;
+private BigDecimal montantFraisUsd;
+
+private BigDecimal montantTotalFc;
+private BigDecimal montantTotalUsd;
+
+private String observateur;
 
     private List<ReceptionAchatLigneResponse> lignes;
 }

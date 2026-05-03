@@ -16,6 +16,7 @@ import com.king.pos.Dao.ProduitLocatorRepository;
 import com.king.pos.Dao.ProduitRepository;
 import com.king.pos.Dao.StockRepository;
 import com.king.pos.Dao.TarifCategorieProduitRepository;
+import com.king.pos.Dao.TauxChangeRepository;
 import com.king.pos.Dao.TransactionStockRepository;
 import com.king.pos.Dto.TransactionStockView;
 import com.king.pos.Dto.Response.ProduitPosResponse;
@@ -27,6 +28,7 @@ import com.king.pos.Entitys.Produit;
 import com.king.pos.Entitys.ProduitLocator;
 import com.king.pos.Entitys.StockProduit;
 import com.king.pos.Entitys.TarifCategorieProduit;
+import com.king.pos.Entitys.TauxChange;
 import com.king.pos.Entitys.TransactionStock;
 import com.king.pos.Interface.StockService;
 
@@ -46,75 +48,52 @@ public class StockServiceImpl implements StockService {
     private final StockRepository stockProduitRepository;
     private final TarifCategorieProduitRepository tarifCategorieProduitRepository;
     private final ProduitLocatorRepository produitLocatorRepository;
+    private final TauxChangeRepository tauxChangeRepository;
 
-@Override
-@Transactional
-public List<StockProduitView> getAllStock() {
+    @Override
+    @Transactional
+    public List<StockProduitView> getAllStock() {
 
-    List<StockProduit> stocks = stockRepository.findAllAvecProduitCategorieEtDepot();
+        BigDecimal tauxChange = tauxChangeRepository
+                .findTopByActifTrueOrderByDateActivationDescDateCreationDesc()
+                .map(TauxChange::getTaux)
+                .orElse(BigDecimal.ONE);
 
-    Map<Long, TarifCategorieProduit> reglesParCategorie = tarifCategorieProduitRepository
-            .findLatestActifByCategorie()
-            .stream()
-            .filter(regle -> regle != null
-                    && Boolean.TRUE.equals(regle.getActif())
-                    && regle.getCategorie() != null
-                    && regle.getCategorie().getId() != null)
-            .collect(Collectors.toMap(
-                    regle -> regle.getCategorie().getId(),
-                    Function.identity(),
-                    (r1, r2) -> {
-                        if (r1.getDateCreation() == null) return r2;
-                        if (r2.getDateCreation() == null) return r1;
-                        return r1.getDateCreation().isAfter(r2.getDateCreation()) ? r1 : r2;
-                    }
-            ));
+        List<StockProduit> stocks = stockRepository.findAllAvecProduitCategorieEtDepot();
 
-    stocks.forEach(stock -> {
-        Long produitId = stock.getProduit() != null ? stock.getProduit().getId() : null;
-        String produitNom = stock.getProduit() != null ? stock.getProduit().getNom() : null;
+        Map<Long, TarifCategorieProduit> reglesParCategorie = tarifCategorieProduitRepository
+                .findLatestActifByCategorie()
+                .stream()
+                .filter(regle -> regle != null
+                        && Boolean.TRUE.equals(regle.getActif())
+                        && regle.getCategorie() != null
+                        && regle.getCategorie().getId() != null)
+                .collect(Collectors.toMap(
+                        regle -> regle.getCategorie().getId(),
+                        Function.identity(),
+                        (r1, r2) -> {
+                            if (r1.getDateCreation() == null)
+                                return r2;
+                            if (r2.getDateCreation() == null)
+                                return r1;
+                            return r1.getDateCreation().isAfter(r2.getDateCreation()) ? r1 : r2;
+                        }));
 
-        Long categorieId = (stock.getProduit() != null && stock.getProduit().getCategorie() != null)
-                ? stock.getProduit().getCategorie().getId()
-                : null;
-
-        TarifCategorieProduit regle = categorieId != null ? reglesParCategorie.get(categorieId) : null;
-
-        System.out.println("=================================");
-        System.out.println("Stock ID       : " + stock.getId());
-        System.out.println("Produit ID     : " + produitId);
-        System.out.println("Produit Nom    : " + produitNom);
-        System.out.println("Categorie ID   : " + categorieId);
-        System.out.println("Quantité Disp  : " + stock.getQuantiteDisponible());
-        System.out.println("PMP            : " + stock.getPmp());
-        System.out.println("Valeur Stock   : " + stock.getValeurStock());
-
-        if (regle != null) {
-            System.out.println("Règle Tarif ID : " + regle.getId());
-            System.out.println("Tarif Nom      : " + (regle.getTarifVente() != null ? regle.getTarifVente().getNom() : null));
-            System.out.println("Marge %        : " + regle.getTauxMarge());
-            System.out.println("Remise Max     : " + regle.getTauxRemiseMax());
-            System.out.println("Date Création  : " + regle.getDateCreation());
-        } else {
-            System.out.println("Règle Tarif    : AUCUNE REGLE TROUVEE");
-        }
-    });
-
+          
     return stocks.stream()
             .map(stock -> mapToStockView(stock, reglesParCategorie))
             .toList();
-}
+    }
 
-   private static final BigDecimal ZERO = BigDecimal.ZERO;
-
+    private static final BigDecimal ZERO = BigDecimal.ZERO;
 private StockProduitView mapToStockView(
         StockProduit stock,
-        Map<Long, TarifCategorieProduit> reglesParCategorie
-) {
+        Map<Long, TarifCategorieProduit> reglesParCategorie) {
+
     Produit produit = stock.getProduit();
     Depot depot = stock.getDepot();
 
-    Long categorieId = (produit != null && produit.getCategorie() != null)
+    Long categorieId = produit != null && produit.getCategorie() != null
             ? produit.getCategorie().getId()
             : null;
 
@@ -123,37 +102,30 @@ private StockProduitView mapToStockView(
             : null;
 
     BigDecimal quantite = nvl(stock.getQuantiteDisponible()).setScale(3, RoundingMode.HALF_UP);
-    BigDecimal pmp = nvl(stock.getPmp()).setScale(2, RoundingMode.HALF_UP);
-    
-    ProduitLocator produitLocator = produitLocatorRepository
-    .findByProduitIdAndDepotId(stock.getProduit().getId(), stock.getDepot().getId())
-    .orElse(null);
 
-    String locatorCode = produitLocator != null ? produitLocator.getLocator().getCode() : null;
-    Long locatorId = produitLocator != null ? produitLocator.getLocator().getId() : null;
+    // ===== HISTORIQUE STOCK =====
+    BigDecimal tauxChangeUtilise = nvl(stock.getTauxChangeUtilise()).setScale(2, RoundingMode.HALF_UP);
 
-    BigDecimal stockMinimum = (produit != null && produit.getStockMinimum() != null)
-            ? produit.getStockMinimum().setScale(2, RoundingMode.HALF_UP)
-            : ZERO.setScale(2, RoundingMode.HALF_UP);
+    BigDecimal pmpFc = nvl(stock.getPmpFc()).setScale(2, RoundingMode.HALF_UP);
 
-    BigDecimal stockMaximum = (produit != null && produit.getStockMaximum() != null)
-            ? produit.getStockMaximum().setScale(2, RoundingMode.HALF_UP)
-            : ZERO.setScale(2, RoundingMode.HALF_UP);
+    BigDecimal pmpUsd = nvl(stock.getPmpUsd()).setScale(4, RoundingMode.HALF_UP);
 
-    BigDecimal tauxMarge = (regle != null && regle.getTauxMarge() != null)
+    BigDecimal valeurStockFc = nvl(stock.getValeurStockFc()).setScale(2, RoundingMode.HALF_UP);
+
+    BigDecimal valeurStockUsd = nvl(stock.getValeurStockUsd()).setScale(2, RoundingMode.HALF_UP);
+
+    // ===== TARIFICATION FC =====
+    BigDecimal tauxMarge = regle != null && regle.getTauxMarge() != null
             ? regle.getTauxMarge().setScale(2, RoundingMode.HALF_UP)
             : ZERO.setScale(2, RoundingMode.HALF_UP);
 
-    BigDecimal margeUnitaire = pmp.multiply(tauxMarge)
+    BigDecimal margeUnitaire = pmpFc.multiply(tauxMarge)
             .divide(CENT, 2, RoundingMode.HALF_UP);
 
-    BigDecimal prixVenteUnitaire = pmp.add(margeUnitaire)
+    BigDecimal prixVenteUnitaire = pmpFc.add(margeUnitaire)
             .setScale(2, RoundingMode.HALF_UP);
 
     BigDecimal margeTotaleStock = margeUnitaire.multiply(quantite)
-            .setScale(2, RoundingMode.HALF_UP);
-
-    BigDecimal valeurStock = pmp.multiply(quantite)
             .setScale(2, RoundingMode.HALF_UP);
 
     return StockProduitView.builder()
@@ -161,27 +133,40 @@ private StockProduitView mapToStockView(
             .produitId(produit != null ? produit.getId() : null)
             .nomProduit(produit != null ? produit.getNom() : null)
             .codeBarre(produit != null ? produit.getCodeBarres() : null)
+
             .categorieId(categorieId)
             .categorie(produit != null && produit.getCategorie() != null
                     ? produit.getCategorie().getNom()
                     : null)
+
             .depotId(depot != null ? depot.getId() : null)
-            .locatorId(locatorId)
-            .locatorCode(locatorCode)
             .nomDepot(depot != null ? depot.getNom() : null)
+
             .quantiteDisponible(quantite)
-            .pmp(pmp)
-            .valeurStock(valeurStock)
-            .stockMinimum(stockMinimum)
-            .stockMaximum(stockMaximum)
-            .statutStock(resolveStatut(quantite, stockMinimum, stockMaximum))
-            .tarifVenteId(regle != null && regle.getTarifVente() != null ? regle.getTarifVente().getId() : null)
-            .tarifCode(regle != null && regle.getTarifVente() != null ? regle.getTarifVente().getCode() : null)
-            .tarifNom(regle != null && regle.getTarifVente() != null ? regle.getTarifVente().getNom() : null)
+
+            .pmp(pmpFc)
+            .valeurStock(valeurStockFc)
+
+            .tauxChangeUtilise(tauxChangeUtilise)
+            .pmpFc(pmpFc)
+            .pmpUsd(pmpUsd)
+            .valeurStockFc(valeurStockFc)
+            .valeurStockUsd(valeurStockUsd)
+
+            .stockMinimum(produit.getStockMinimum())
+            .stockMaximum(produit.getStockMaximum())
+
+            .statutStock(resolveStatut(
+                    quantite,
+                    produit.getStockMinimum(),
+                    produit.getStockMaximum()
+            ))
+
             .tauxMarge(tauxMarge)
             .margeUnitaire(margeUnitaire)
             .prixVenteUnitaire(prixVenteUnitaire)
             .margeTotaleStock(margeTotaleStock)
+
             .build();
 }
 
@@ -455,47 +440,118 @@ private StockProduitView mapToStockView(
 
     final TransactionStockRepository transactionStockRepository;
 
-    @Override
-    public List<TransactionStockView> getAllMouvements() {
-        return transactionStockRepository.findAllByOrderByDateTransactionDesc()
-                .stream()
-                .map(this::mapTransactionToView)
-                .toList();
-    }
-
     private TransactionStockView mapTransactionToView(TransactionStock transaction) {
-        return TransactionStockView.builder()
-                .id(transaction.getId())
-                .dateTransaction(transaction.getDateTransaction())
-                .typeTransaction(transaction.getTypeMouvement() != null
-                        ? transaction.getTypeMouvement().name()
-                        : null)
 
-                .produitId(transaction.getProduit() != null ? transaction.getProduit().getId() : null)
-                .produitNom(transaction.getProduit() != null ? transaction.getProduit().getNom() : null)
+    BigDecimal quantite = nvl(transaction.getQuantite())
+            .setScale(3, RoundingMode.HALF_UP);
 
-                .depotId(transaction.getDepot() != null ? transaction.getDepot().getId() : null)
-                .depotNom(transaction.getDepot() != null ? transaction.getDepot().getNom() : null)
+    BigDecimal stockAvant = nvl(transaction.getStockAvant())
+            .setScale(3, RoundingMode.HALF_UP);
 
-                .quantite(nvl(transaction.getQuantite()))
-                .stockAvant(nvl(transaction.getStockAvant()))
-                .stockApres(nvl(transaction.getStockApres()))
-                .pmpAvant(nvl(transaction.getPmpAvant()))
-                .pmpApres(nvl(transaction.getPmpApres()))
-                .prixUnitaire(nvl(transaction.getPrixUnitaire()))
-                .fraisUnitaire(nvl(transaction.getFraisUnitaire()))
-                .coutUnitaireFinal(nvl(transaction.getCoutUnitaireFinal()))
+    BigDecimal stockApres = nvl(transaction.getStockApres())
+            .setScale(3, RoundingMode.HALF_UP);
 
-                .referenceDocument(transaction.getReferenceDocument())
-                .sourceDocument(transaction.getSourceDocument())
-                .sourceDocumentId(transaction.getSourceDocumentId())
-                .libelle(transaction.getLibelle())
-                .utilisateur(transaction.getUtilisateur())
-                .build();
+    BigDecimal pmpAvantFc = nvl(transaction.getPmpAvant())
+            .setScale(6, RoundingMode.HALF_UP);
+
+    BigDecimal pmpApresFc = nvl(transaction.getPmpApres())
+            .setScale(6, RoundingMode.HALF_UP);
+
+    BigDecimal prixUnitaireFc = nvl(transaction.getPrixUnitaire())
+            .setScale(6, RoundingMode.HALF_UP);
+
+    BigDecimal fraisUnitaireFc = nvl(transaction.getFraisUnitaire())
+            .setScale(6, RoundingMode.HALF_UP);
+
+    BigDecimal coutUnitaireFinalFc = nvl(transaction.getCoutUnitaireFinal())
+            .setScale(6, RoundingMode.HALF_UP);
+
+    BigDecimal tauxChangeUtilise = nvl(transaction.getTauxChangeUtilise());
+
+    if (tauxChangeUtilise.compareTo(BigDecimal.ZERO) <= 0) {
+        tauxChangeUtilise = BigDecimal.ONE;
     }
 
+    tauxChangeUtilise = tauxChangeUtilise.setScale(6, RoundingMode.HALF_UP);
+
+    BigDecimal pmpAvantUsd = pmpAvantFc.divide(tauxChangeUtilise, 6, RoundingMode.HALF_UP);
+    BigDecimal pmpApresUsd = pmpApresFc.divide(tauxChangeUtilise, 6, RoundingMode.HALF_UP);
+
+    BigDecimal coutUnitaireFinalUsd = coutUnitaireFinalFc.divide(tauxChangeUtilise, 6, RoundingMode.HALF_UP);
+
+    BigDecimal valeurMouvementFc = quantite.abs()
+            .multiply(coutUnitaireFinalFc)
+            .setScale(2, RoundingMode.HALF_UP);
+
+    BigDecimal valeurMouvementUsd = valeurMouvementFc
+            .divide(tauxChangeUtilise, 2, RoundingMode.HALF_UP);
+
+    BigDecimal valeurStockFc = stockApres
+            .multiply(pmpApresFc)
+            .setScale(2, RoundingMode.HALF_UP);
+
+    BigDecimal valeurStockUsd = valeurStockFc
+            .divide(tauxChangeUtilise, 2, RoundingMode.HALF_UP);
+
+    return TransactionStockView.builder()
+            .id(transaction.getId())
+            .dateTransaction(transaction.getDateTransaction())
+
+            .produitId(transaction.getProduit() != null ? transaction.getProduit().getId() : null)
+            .produitNom(transaction.getProduit() != null ? transaction.getProduit().getNom() : null)
+
+            .depotId(transaction.getDepot() != null ? transaction.getDepot().getId() : null)
+            .depotNom(transaction.getDepot() != null ? transaction.getDepot().getNom() : null)
+
+            .typeTransaction(transaction.getTypeMouvement() != null
+                    ? transaction.getTypeMouvement().name()
+                    : null)
+
+            .quantite(quantite)
+            .stockAvant(stockAvant)
+            .stockApres(stockApres)
+
+            // Valeurs historiques principales en FC
+            .pmpAvant(pmpAvantFc)
+            .pmpApres(pmpApresFc)
+
+            .prixUnitaire(prixUnitaireFc)
+            .fraisUnitaire(fraisUnitaireFc)
+            .coutUnitaireFinal(coutUnitaireFinalFc)
+
+            .tauxChangeUtilise(tauxChangeUtilise)
+
+            // PMP après mouvement
+            .pmpFc(pmpApresFc)
+            .pmpUsd(pmpApresUsd)
+
+            .valeurStockFc(valeurStockFc)
+            .valeurStockUsd(valeurStockUsd)
+
+            .coutUnitaireFinalFc(coutUnitaireFinalFc)
+            .coutUnitaireFinalUsd(coutUnitaireFinalUsd)
+
+            .valeurMouvementFc(valeurMouvementFc)
+            .valeurMouvementUsd(valeurMouvementUsd)
+
+            .referenceDocument(transaction.getReferenceDocument())
+            .sourceDocument(transaction.getSourceDocument())
+            .sourceDocumentId(transaction.getSourceDocumentId())
+            .libelle(transaction.getLibelle())
+            .utilisateur(transaction.getUtilisateur())
+
+            .build();
+}
     private BigDecimal nvl(BigDecimal value) {
         return value != null ? value : BigDecimal.ZERO;
     }
 
+
+@Override
+public List<TransactionStockView> getAllMouvements() {
+    return transactionStockRepository.findAllByOrderByDateTransactionDesc()
+            .stream()
+            .map(this::mapTransactionToView)
+            .toList();
+}
 }

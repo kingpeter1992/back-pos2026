@@ -32,6 +32,10 @@ public class Produit {
     @Column(name = "prix_achat", precision = 12, scale = 2)
     private BigDecimal prixAchat;
 
+    private BigDecimal prixVenteFc;
+    private BigDecimal prixVenteUsd;
+    private BigDecimal tauxChangeUtilise;
+
     @Column(name = "prix_vente", precision = 12, scale = 2, nullable = false)
     private BigDecimal prixVente;
 

@@ -5,6 +5,9 @@ import lombok.*;
 
 import java.math.BigDecimal;
 
+
+
+
 @Getter
 @Setter
 @NoArgsConstructor
@@ -18,12 +21,23 @@ public class ProvisionStockResponse {
     private String categorieNom;
 
     private BigDecimal quantiteDisponible;
+
+    private BigDecimal tauxChangeUtilise;
+
     private BigDecimal pmp;
+    private BigDecimal pmpFc;
+    private BigDecimal pmpUsd;
+
     private BigDecimal valeurStock;
+    private BigDecimal valeurStockFc;
+    private BigDecimal valeurStockUsd;
 
     private Integer joursSansVente;
     private BigDecimal tauxProvision;
-    private BigDecimal montantProvision;
 
-    private String niveauRisque; // FAIBLE, MOYEN, ELEVE, TOTAL
+    private BigDecimal montantProvision;
+    private BigDecimal montantProvisionFc;
+    private BigDecimal montantProvisionUsd;
+
+    private String niveauRisque;
 }

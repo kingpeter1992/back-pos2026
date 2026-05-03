@@ -32,7 +32,7 @@ public class ProvisionStockServiceImpl implements ProvisionStockService {
         return stockProduitRepository.findAllDisponiblesAvecProduit()
                 .stream()
                 .map(this::mapToProvision)
-                .sorted(Comparator.comparing(ProvisionStockResponse::getMontantProvision).reversed())
+                .sorted(Comparator.comparing(ProvisionStockResponse::getMontantProvisionFc).reversed())
                 .toList();
     }
 
@@ -40,23 +40,35 @@ public class ProvisionStockServiceImpl implements ProvisionStockService {
     public ProvisionStockDashboardResponse getDashboardProvisionStock() {
         List<ProvisionStockResponse> lignes = calculerProvisionStock();
 
-        BigDecimal valeurStockTotale = lignes.stream()
-                .map(ProvisionStockResponse::getValeurStock)
+        BigDecimal valeurStockTotaleFc = lignes.stream()
+                .map(ProvisionStockResponse::getValeurStockFc)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        BigDecimal provisionTotale = lignes.stream()
-                .map(ProvisionStockResponse::getMontantProvision)
+        BigDecimal valeurStockTotaleUsd = lignes.stream()
+                .map(ProvisionStockResponse::getValeurStockUsd)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal provisionTotaleFc = lignes.stream()
+                .map(ProvisionStockResponse::getMontantProvisionFc)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal provisionTotaleUsd = lignes.stream()
+                .map(ProvisionStockResponse::getMontantProvisionUsd)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         long nombreProduits = lignes.size();
 
         long nombreProduitsProvisionnes = lignes.stream()
-                .filter(l -> l.getMontantProvision().compareTo(BigDecimal.ZERO) > 0)
+                .filter(l -> defaultIfNull(l.getMontantProvisionFc()).compareTo(BigDecimal.ZERO) > 0)
                 .count();
 
         return ProvisionStockDashboardResponse.builder()
-                .valeurStockTotale(valeurStockTotale.setScale(2, RoundingMode.HALF_UP))
-                .provisionTotale(provisionTotale.setScale(2, RoundingMode.HALF_UP))
+                .valeurStockTotale(valeurStockTotaleFc.setScale(2, RoundingMode.HALF_UP))
+                .valeurStockTotaleFc(valeurStockTotaleFc.setScale(2, RoundingMode.HALF_UP))
+                .valeurStockTotaleUsd(valeurStockTotaleUsd.setScale(2, RoundingMode.HALF_UP))
+                .provisionTotale(provisionTotaleFc.setScale(2, RoundingMode.HALF_UP))
+                .provisionTotaleFc(provisionTotaleFc.setScale(2, RoundingMode.HALF_UP))
+                .provisionTotaleUsd(provisionTotaleUsd.setScale(2, RoundingMode.HALF_UP))
                 .nombreProduits(nombreProduits)
                 .nombreProduitsProvisionnes(nombreProduitsProvisionnes)
                 .lignes(lignes)
@@ -66,17 +78,58 @@ public class ProvisionStockServiceImpl implements ProvisionStockService {
     private ProvisionStockResponse mapToProvision(StockProduit stock) {
         Long produitId = stock.getProduit().getId();
 
-        BigDecimal quantiteDisponible = defaultIfNull(stock.getQuantiteDisponible()).setScale(3, RoundingMode.HALF_UP);
-        BigDecimal pmp = defaultIfNull(stock.getPmp()).setScale(6, RoundingMode.HALF_UP);
+        BigDecimal quantiteDisponible = defaultIfNull(stock.getQuantiteDisponible())
+                .setScale(3, RoundingMode.HALF_UP);
 
-        BigDecimal valeurStock = quantiteDisponible.multiply(pmp).setScale(2, RoundingMode.HALF_UP);
+        BigDecimal tauxChangeUtilise = defaultIfNull(stock.getTauxChangeUtilise())
+                .setScale(6, RoundingMode.HALF_UP);
+
+        BigDecimal pmp = defaultIfNull(stock.getPmp())
+                .setScale(6, RoundingMode.HALF_UP);
+
+        BigDecimal pmpFc = defaultIfNull(stock.getPmpFc())
+                .setScale(6, RoundingMode.HALF_UP);
+
+        BigDecimal pmpUsd = defaultIfNull(stock.getPmpUsd())
+                .setScale(6, RoundingMode.HALF_UP);
+
+        BigDecimal valeurStock = defaultIfNull(stock.getValeurStock())
+                .setScale(2, RoundingMode.HALF_UP);
+
+        BigDecimal valeurStockFc = defaultIfNull(stock.getValeurStockFc());
+
+        if (valeurStockFc.compareTo(BigDecimal.ZERO) == 0) {
+            valeurStockFc = quantiteDisponible.multiply(pmpFc);
+        }
+
+        valeurStockFc = valeurStockFc.setScale(2, RoundingMode.HALF_UP);
+
+        BigDecimal valeurStockUsd = defaultIfNull(stock.getValeurStockUsd());
+
+        if (valeurStockUsd.compareTo(BigDecimal.ZERO) == 0) {
+            if (pmpUsd.compareTo(BigDecimal.ZERO) > 0) {
+                valeurStockUsd = quantiteDisponible.multiply(pmpUsd);
+            } else if (tauxChangeUtilise.compareTo(BigDecimal.ZERO) > 0) {
+                valeurStockUsd = valeurStockFc.divide(tauxChangeUtilise, 2, RoundingMode.HALF_UP);
+            }
+        }
+
+        valeurStockUsd = valeurStockUsd.setScale(2, RoundingMode.HALF_UP);
 
         LocalDateTime derniereDateVente =
-        venteLigneRepository.findDerniereDateVenteByProduitId(produitId, StatutVente.VALIDE);
+                venteLigneRepository.findDerniereDateVenteByProduitId(produitId, StatutVente.VALIDE);
 
         int joursSansVente = calculerJoursSansVente(derniereDateVente);
+
         BigDecimal tauxProvision = determinerTauxProvision(joursSansVente);
-        BigDecimal montantProvision = valeurStock.multiply(tauxProvision).setScale(2, RoundingMode.HALF_UP);
+
+        BigDecimal montantProvisionFc = valeurStockFc
+                .multiply(tauxProvision)
+                .setScale(2, RoundingMode.HALF_UP);
+
+        BigDecimal montantProvisionUsd = valeurStockUsd
+                .multiply(tauxProvision)
+                .setScale(2, RoundingMode.HALF_UP);
 
         return ProvisionStockResponse.builder()
                 .produitId(produitId)
@@ -88,11 +141,18 @@ public class ProvisionStockServiceImpl implements ProvisionStockService {
                                 : null
                 )
                 .quantiteDisponible(quantiteDisponible)
+                .tauxChangeUtilise(tauxChangeUtilise)
                 .pmp(pmp)
-                .valeurStock(valeurStock)
+                .pmpFc(pmpFc)
+                .pmpUsd(pmpUsd)
+                .valeurStock(valeurStockFc)
+                .valeurStockFc(valeurStockFc)
+                .valeurStockUsd(valeurStockUsd)
                 .joursSansVente(joursSansVente)
                 .tauxProvision(tauxProvision)
-                .montantProvision(montantProvision)
+                .montantProvision(montantProvisionFc)
+                .montantProvisionFc(montantProvisionFc)
+                .montantProvisionUsd(montantProvisionUsd)
                 .niveauRisque(determinerNiveauRisque(tauxProvision))
                 .build();
     }
@@ -101,19 +161,26 @@ public class ProvisionStockServiceImpl implements ProvisionStockService {
         if (derniereDateVente == null) {
             return 9999;
         }
-        return (int) ChronoUnit.DAYS.between(derniereDateVente.toLocalDate(), LocalDate.now());
+
+        return (int) ChronoUnit.DAYS.between(
+                derniereDateVente.toLocalDate(),
+                LocalDate.now()
+        );
     }
 
     private BigDecimal determinerTauxProvision(int joursSansVente) {
         if (joursSansVente >= 730) {
-            return new BigDecimal("1.00"); // 100%
+            return new BigDecimal("1.00");
         }
+
         if (joursSansVente >= 365) {
-            return new BigDecimal("0.50"); // 50%
+            return new BigDecimal("0.50");
         }
+
         if (joursSansVente >= 180) {
-            return new BigDecimal("0.30"); // 30%
+            return new BigDecimal("0.30");
         }
+
         return BigDecimal.ZERO;
     }
 
@@ -121,12 +188,15 @@ public class ProvisionStockServiceImpl implements ProvisionStockService {
         if (tauxProvision.compareTo(new BigDecimal("1.00")) == 0) {
             return "TOTAL";
         }
+
         if (tauxProvision.compareTo(new BigDecimal("0.50")) == 0) {
             return "ELEVE";
         }
+
         if (tauxProvision.compareTo(new BigDecimal("0.30")) == 0) {
             return "MOYEN";
         }
+
         return "FAIBLE";
     }
 

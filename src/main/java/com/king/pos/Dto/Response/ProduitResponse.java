@@ -21,6 +21,9 @@ public class ProduitResponse {
     private String fournisseurNom;
     private BigDecimal prixAchat;
     private BigDecimal prixVente;
+    private BigDecimal prixVenteFc;
+    private BigDecimal prixVenteUsd;
+    private BigDecimal tauxChangeUtilise;
     private BigDecimal stockMinimum;
     private BigDecimal stockMaximum;
     private Boolean actif;

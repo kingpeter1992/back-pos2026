@@ -13,6 +13,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.Comparator;
 import java.util.List;
 
@@ -26,7 +27,6 @@ public class PeremptionQueryService {
 
 public List<AlertePeremptionResponse> getAlertes() {
     List<StockLot> lots = stockLotRepository.findLotsEnAlerte();
-
     return lots.stream()
             .map(this::mapToAlerteResponse)
             .sorted(Comparator.comparing(
@@ -70,21 +70,79 @@ public List<AlertePeremptionResponse> getAlertes() {
                 .build();
     }
 
-    private AlertePeremptionResponse mapToAlerteResponse(StockLot lot) {
-        return AlertePeremptionResponse.builder()
-                .lotId(lot.getId())
-                .produitId(lot.getProduit() != null ? lot.getProduit().getId() : null)
-                .produitNom(lot.getProduit() != null ? lot.getProduit().getNom() : null)
-                .codeBarres(lot.getProduit() != null ? lot.getProduit().getCodeBarres() : null)
-                .depotId(lot.getDepot() != null ? lot.getDepot().getId() : null)
-                .depotNom(lot.getDepot() != null ? lot.getDepot().getNom() : null)
-                .quantiteDisponible(lot.getQuantiteDisponible())
-                .datePeremption(lot.getDatePeremption())
-                .joursRestants(PeremptionUtils.calculerJoursRestants(lot.getDatePeremption()))
-                .statutPeremption(lot.getStatutPeremption())
-                .niveauAlerte(getNiveauAlerte(lot.getStatutPeremption()))
-                .build();
+private AlertePeremptionResponse mapToAlerteResponse(StockLot lot) {
+
+    BigDecimal qte = nvl(lot.getQuantiteDisponible());
+    BigDecimal taux = nvl(lot.getTauxChangeUtilise());
+
+    BigDecimal coutFc = nvl(lot.getCoutUnitaireFinalFc());
+    BigDecimal coutUsd = nvl(lot.getCoutUnitaireFinalUsd());
+
+    if (coutFc.compareTo(BigDecimal.ZERO) == 0) {
+        coutFc = nvl(lot.getCoutUnitaireFinal());
     }
+
+    if (coutUsd.compareTo(BigDecimal.ZERO) == 0 && taux.compareTo(BigDecimal.ZERO) > 0) {
+        coutUsd = coutFc.divide(taux, 6, RoundingMode.HALF_UP);
+    }
+
+    BigDecimal valeurLotFc = qte.multiply(coutFc);
+    BigDecimal valeurLotUsd = taux.compareTo(BigDecimal.ZERO) > 0
+            ? valeurLotFc.divide(taux, 6, RoundingMode.HALF_UP)
+            : BigDecimal.ZERO;
+
+    return AlertePeremptionResponse.builder()
+            .id(lot.getId())
+            .lotId(lot.getId())
+
+            .produitId(lot.getProduit() != null ? lot.getProduit().getId() : null)
+            .produitNom(lot.getProduit() != null ? lot.getProduit().getNom() : null)
+            .codeBarres(lot.getProduit() != null ? lot.getProduit().getCodeBarres() : null)
+
+            .depotId(lot.getDepot() != null ? lot.getDepot().getId() : null)
+            .depotNom(lot.getDepot() != null ? lot.getDepot().getNom() : null)
+
+            .quantiteInitiale(lot.getQuantiteInitiale())
+            .quantiteDisponible(lot.getQuantiteDisponible())
+
+            .prixUnitaire(lot.getPrixUnitaire())
+            .fraisUnitaire(lot.getFraisUnitaire())
+            .coutUnitaireFinal(lot.getCoutUnitaireFinal())
+
+            .tauxChangeUtilise(taux)
+
+            .prixUnitaireFc(lot.getPrixUnitaireFc())
+            .prixUnitaireUsd(lot.getPrixUnitaireUsd())
+            .fraisUnitaireFc(lot.getFraisUnitaireFc())
+            .fraisUnitaireUsd(lot.getFraisUnitaireUsd())
+
+            .coutUnitaireFinalFc(coutFc)
+            .coutUnitaireFinalUsd(coutUsd)
+
+            .valeurLotFc(valeurLotFc)
+            .valeurLotUsd(valeurLotUsd)
+
+            .dateEntree(lot.getDateEntree())
+            .datePeremption(lot.getDatePeremption())
+            .joursRestants(PeremptionUtils.calculerJoursRestants(lot.getDatePeremption()))
+
+            .statutPeremption(lot.getStatutPeremption())
+            .niveauAlerte(getNiveauAlerte(lot.getStatutPeremption()))
+
+            .referenceDocument(lot.getReferenceDocument())
+            .sourceDocument(lot.getSourceDocument())
+            .sourceDocumentId(lot.getSourceDocumentId())
+
+            .dateCreation(lot.getDateCreation())
+            .dateModification(lot.getDateModification())
+
+            .numeroLot(lot.getNumeroLot())
+            .build();
+}
+
+private BigDecimal nvl(BigDecimal value) {
+    return value != null ? value : BigDecimal.ZERO;
+}
 
     private String getNiveauAlerte(StatutPeremption statut) {
         return switch (statut) {

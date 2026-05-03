@@ -10,17 +10,29 @@ import java.io.ByteArrayOutputStream;
 @Service
 public class BarcodeServiceImpl implements QrCodeService {
 
-    @Override
-    public byte[] generateBarcodePng(String text, int width, int height) {
-        try {
-            BitMatrix matrix = new Code128Writer().encode(text, BarcodeFormat.CODE_128, width, height);
-            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-            MatrixToImageWriter.writeToStream(matrix, "PNG", outputStream);
-            return outputStream.toByteArray();
-        } catch (Exception e) {
-            throw new RuntimeException("Erreur génération code-barres : " + e.getMessage());
+@Override
+public byte[] generateBarcodePng(String text, int width, int height) {
+    try {
+        if (text == null || text.trim().isEmpty()) {
+            throw new IllegalArgumentException("Le code-barres est vide.");
         }
+
+        BitMatrix matrix = new Code128Writer().encode(
+                text.trim(),
+                BarcodeFormat.CODE_128,
+                width,
+                height
+        );
+
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        MatrixToImageWriter.writeToStream(matrix, "PNG", outputStream);
+
+        return outputStream.toByteArray();
+
+    } catch (Exception e) {
+        throw new RuntimeException("Erreur génération code-barres : " + e.getMessage(), e);
     }
+}
 
     @Override
     public byte[] generateQrCodePng(String text, int width, int height) {

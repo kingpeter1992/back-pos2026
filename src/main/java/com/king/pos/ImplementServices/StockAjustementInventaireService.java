@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 
 @Service
 @RequiredArgsConstructor
@@ -29,6 +30,7 @@ public class StockAjustementInventaireService {
             Long stockLotId,
             BigDecimal ecart,
             BigDecimal pmp,
+            BigDecimal taux,
             String referenceInventaire
     ) {
         validateIds(produitId, depotId);
@@ -37,8 +39,9 @@ public class StockAjustementInventaireService {
             return;
         }
 
-        BigDecimal quantite = ecart.abs();
-        BigDecimal pmpValue = nvl(pmp);
+        BigDecimal quantite = scale3(ecart.abs());
+        BigDecimal pmpValue = scale6(nvl(pmp));
+        BigDecimal tauxValue = scale6(nvl(taux));
 
         if (ecart.compareTo(BigDecimal.ZERO) > 0) {
             transactionStockService.entree(
@@ -49,6 +52,7 @@ public class StockAjustementInventaireService {
                     quantite,
                     pmpValue,
                     TypeMouvementStock.AJUSTEMENT_INVENTAIRE_ENTREE,
+                    tauxValue,
                     "INVENTAIRE",
                     referenceInventaire
             );
@@ -62,17 +66,12 @@ public class StockAjustementInventaireService {
                     pmpValue,
                     TypeMouvementStock.AJUSTEMENT_INVENTAIRE_SORTIE,
                     "INVENTAIRE",
+                    tauxValue,
                     referenceInventaire
             );
         }
     }
 
-    /**
-     * Annule tous les ajustements de stock déjà appliqués
-     * pour une référence d'inventaire donnée.
-     *
-     * L'inversion réelle des mouvements est déléguée à TransactionStockService.
-     */
     @Transactional
     public void annulerAjustementsDepuisReference(String referenceInventaire) {
         if (referenceInventaire == null || referenceInventaire.isBlank()) {
@@ -94,5 +93,13 @@ public class StockAjustementInventaireService {
 
     private BigDecimal nvl(BigDecimal value) {
         return value != null ? value : BigDecimal.ZERO;
+    }
+
+    private BigDecimal scale3(BigDecimal value) {
+        return nvl(value).setScale(3, RoundingMode.HALF_UP);
+    }
+
+    private BigDecimal scale6(BigDecimal value) {
+        return nvl(value).setScale(6, RoundingMode.HALF_UP);
     }
 }

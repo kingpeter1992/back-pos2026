@@ -38,13 +38,55 @@ private BigDecimal remise;
     @Column(precision = 18, scale = 2)
     private BigDecimal montantLigne;
 
-    @PrePersist
-    @PreUpdate
-    public void preSave() {
-        if (quantiteRecue == null) quantiteRecue = BigDecimal.ZERO;
-        if (quantiteCommandee == null) quantiteCommandee = BigDecimal.ZERO;
-        if (prixUnitaire == null) prixUnitaire = BigDecimal.ZERO;
-        if (remise == null) remise = BigDecimal.ZERO;
-        montantLigne = quantiteCommandee.multiply(prixUnitaire);
+
+    @Column(precision = 18, scale = 6)
+private BigDecimal tauxChangeUtilise;
+
+@Column(precision = 18, scale = 2)
+private BigDecimal prixUnitaireFc;
+
+@Column(precision = 18, scale = 2)
+private BigDecimal prixUnitaireUsd;
+
+@Column(precision = 18, scale = 2)
+private BigDecimal montantLigneFc;
+
+@Column(precision = 18, scale = 2)
+private BigDecimal montantLigneUsd;
+
+@PrePersist
+@PreUpdate
+public void preSave() {
+    if (quantiteRecue == null) quantiteRecue = BigDecimal.ZERO;
+    if (quantiteCommandee == null) quantiteCommandee = BigDecimal.ZERO;
+    if (prixUnitaire == null) prixUnitaire = BigDecimal.ZERO;
+    if (remise == null) remise = BigDecimal.ZERO;
+    if (tauxChangeUtilise == null) tauxChangeUtilise = BigDecimal.ZERO;
+
+    BigDecimal sousTotal = quantiteCommandee
+            .multiply(prixUnitaire)
+            .subtract(remise);
+
+    if (sousTotal.compareTo(BigDecimal.ZERO) < 0) {
+        sousTotal = BigDecimal.ZERO;
     }
+
+    montantLigne = sousTotal;
+
+    if (prixUnitaireFc == null) {
+        prixUnitaireFc = prixUnitaire;
+    }
+
+    if (montantLigneFc == null) {
+        montantLigneFc = sousTotal;
+    }
+
+    if (prixUnitaireUsd == null) {
+        prixUnitaireUsd = BigDecimal.ZERO;
+    }
+
+    if (montantLigneUsd == null) {
+        montantLigneUsd = BigDecimal.ZERO;
+    }
+}
 }

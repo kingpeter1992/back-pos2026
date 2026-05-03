@@ -59,6 +59,9 @@ public ProduitResponse create(ProduitRequest request) {
             .description(request.getDescription())
             .categorie(categorie)
             .prixVente(request.getPrixVente())
+            .prixVenteFc(request.getPrixVenteFc())
+            .prixVenteUsd(request.getPrixVenteUsd())
+            .tauxChangeUtilise(request.getTauxChangeUtilise())
             .stockMinimum(request.getStockMinimum())
             .stockMaximum(request.getStockMaximum())
             .actif(true)
@@ -131,6 +134,13 @@ private String generateUniqueBarcode() {
                 })
                 .toList();
     }
+
+
+    public String getCodeBarresById(Long id) {
+    return produitRepository.findCodeBarresById(id)
+            .orElseThrow(() -> new RuntimeException("Produit introuvable avec id : " + id));
+}
+
 
 @Override
 @Transactional(readOnly = true)

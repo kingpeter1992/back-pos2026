@@ -4,7 +4,6 @@ import lombok.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -51,6 +50,16 @@ public class CommandeAchat {
     private BigDecimal montantTotal;
 
 
+    @Column(precision = 18, scale = 2)
+private BigDecimal montantTotalFc;
+
+@Column(precision = 18, scale = 2)
+private BigDecimal montantTotalUsd;
+
+@Column(precision = 18, scale = 6)
+private BigDecimal tauxChangeUtilise;
+
+
     @Column(columnDefinition = "TEXT")
     private String observation;
 
@@ -62,19 +71,24 @@ public class CommandeAchat {
     @JsonManagedReference
     private List<CommandeAchatLigne> lignes = new ArrayList<>();
 
-    @PrePersist
-    public void prePersist() {
-        if (dateCommande == null) dateCommande = LocalDate.now();
-        if (dateCreation == null) dateCreation = LocalDate.now();
-        if (statut == null) statut = StatutCommandeFournisseur.BROUILLON;
-        if (montantTotal == null) montantTotal = BigDecimal.ZERO;
-        if (taux == null) taux = BigDecimal.ONE;
-        if (devise == null) devise = Devise.USD;
-        if (montantBrut == null) montantBrut = BigDecimal.ZERO;
-        if (montantRemise == null) montantRemise = BigDecimal.ZERO;
-    }
+@PrePersist
+public void prePersist() {
+    if (dateCommande == null) dateCommande = LocalDate.now();
+    if (dateCreation == null) dateCreation = LocalDate.now();
+    if (statut == null) statut = StatutCommandeFournisseur.BROUILLON;
 
+    if (devise == null) devise = Devise.CDF;
 
+    if (taux == null) taux = BigDecimal.ZERO;
+    if (tauxChangeUtilise == null) tauxChangeUtilise = taux;
+
+    if (montantBrut == null) montantBrut = BigDecimal.ZERO;
+    if (montantRemise == null) montantRemise = BigDecimal.ZERO;
+    if (montantTotal == null) montantTotal = BigDecimal.ZERO;
+
+    if (montantTotalFc == null) montantTotalFc = montantTotal;
+    if (montantTotalUsd == null) montantTotalUsd = BigDecimal.ZERO;
+}
 
 
     @PreUpdate

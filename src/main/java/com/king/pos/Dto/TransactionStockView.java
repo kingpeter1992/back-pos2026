@@ -42,4 +42,18 @@ public class TransactionStockView {
 
     private String libelle;
     private String utilisateur;
+
+    private BigDecimal tauxChangeUtilise;
+
+private BigDecimal pmpFc;
+private BigDecimal pmpUsd;
+
+private BigDecimal valeurStockFc;
+private BigDecimal valeurStockUsd;
+
+private BigDecimal valeurMouvementFc;
+private BigDecimal valeurMouvementUsd;
+
+private BigDecimal coutUnitaireFinalFc;
+private BigDecimal coutUnitaireFinalUsd;
 }

@@ -16,6 +16,4 @@ public class OuvrirCaisseDTO {
     private double soldeInitialCDF = 0.0;
 
     private String note;
-
-    private Double tauxChange;
 }

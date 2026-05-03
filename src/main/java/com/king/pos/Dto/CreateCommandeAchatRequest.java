@@ -21,5 +21,11 @@ public class CreateCommandeAchatRequest {
     private LocalDate dateCommande;
     private LocalDate dateLivraisonPrevue;
     private String observation;
+    // NOUVEAU
+    private BigDecimal montantTotalFc;
+    private BigDecimal montantTotalUsd;
+    private BigDecimal tauxChangeUtilise;
+
+    
     private List<CommandeAchatLigneRequest> lignes;
 }

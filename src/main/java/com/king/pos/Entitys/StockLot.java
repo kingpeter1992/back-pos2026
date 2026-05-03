@@ -63,6 +63,33 @@ public class StockLot {
     private LocalDate dateCreation;
     private LocalDate dateModification;
 
+    @Column(precision = 18, scale = 6)
+private BigDecimal tauxChangeUtilise;
+
+@Column(precision = 18, scale = 2)
+private BigDecimal prixUnitaireFc;
+
+@Column(precision = 18, scale = 2)
+private BigDecimal prixUnitaireUsd;
+
+@Column(precision = 18, scale = 6)
+private BigDecimal fraisUnitaireFc;
+
+@Column(precision = 18, scale = 6)
+private BigDecimal fraisUnitaireUsd;
+
+@Column(precision = 18, scale = 6)
+private BigDecimal coutUnitaireFinalFc;
+
+@Column(precision = 18, scale = 6)
+private BigDecimal coutUnitaireFinalUsd;
+
+@Column(precision = 18, scale = 2)
+private BigDecimal montantLigneFc;
+
+@Column(precision = 18, scale = 2)
+private BigDecimal montantLigneUsd;
+
     @Column(length = 100)
 private String numeroLot;
 

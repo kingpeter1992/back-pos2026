@@ -1,48 +1,30 @@
 package com.king.pos.Dto;
 
-import com.king.pos.Entitys.Categorie;
 import com.king.pos.Entitys.ModePaiement;
 import com.king.pos.Entitys.TypeTransaction;
 import com.king.pos.enums.Devise;
-
-import jakarta.validation.constraints.NotNull;
 import lombok.*;
 
-@Getter @Setter
-@NoArgsConstructor @AllArgsConstructor
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
 @Builder
 public class OperationCaisseDTO {
 
-    @NotNull
-    private TypeTransaction type; // ENCAISSEMENT / DECAISSEMENT
+    private TypeTransaction type;
 
-    @NotNull
-    private Devise devise; // USD / CDF
+    private Devise devise;
 
-    @NotNull
     private double montant;
 
-    @NotNull
-    private Categorie category; // SALAIRE, AVANCE, FACTURE, REMBOURSEMENT, AUTRE...
+    private String category;
 
-    @NotNull
-    private ModePaiement modePaiement; // CASH, MOBILE_MONEY, BANQUE
+    private ModePaiement modePaiement;
 
     private String description;
 
-    /**
-     * ex: FACT-12, DEP-171..., REM-..., SAL-...
-     * (facultatif si tu génères côté service)
-     */
     private String reference;
 
-    /** L'un ou l'autre (ou aucun) */
-    private Long clientId;
-    private Long gardienId;
-
-    /**
-     * Optionnel: si tu veux lier à une facture
-     * (utile pour encaissement client facture)
-     */
-    private Long factureId;
+    private Double tauxChange;
 }

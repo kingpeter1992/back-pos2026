@@ -15,8 +15,8 @@ import com.king.pos.Dto.Response.CommandeDashboardItemDto;
 import com.king.pos.Dto.Response.CommandeDashboardResponse;
 import com.king.pos.Dto.Response.FournisseurDashboardDto;
 import com.king.pos.Entitys.CommandeAchat;
-import com.king.pos.Entitys.Fournisseur;
 import com.king.pos.Entitys.CommandeAchatLigne;
+import com.king.pos.Entitys.Fournisseur;
 import com.king.pos.Entitys.Produit;
 import com.king.pos.Interface.CommandeFournisseurService;
 import com.king.pos.enums.Devise;
@@ -47,113 +47,112 @@ public class CommandeAchatService implements CommandeFournisseurService {
     private final FournisseurRepository fournisseurRepository;
     private final ProduitRepository produitRepository;
 
-@Transactional
-@Override
-public CommandeAchatResponse create(CreateCommandeAchatRequest request) {
-    if (request.getFournisseurId() == null) {
-        throw new IllegalStateException("Le fournisseur est obligatoire.");
-    }
+    // =========================================================
+    // CREATE
+    // =========================================================
+    @Override
+    public CommandeAchatResponse create(CreateCommandeAchatRequest request) {
+        validateRequest(request);
 
-    if (request.getLignes() == null || request.getLignes().isEmpty()) {
-        throw new IllegalStateException("La commande doit contenir au moins une ligne.");
-    }
+        Fournisseur fournisseur = fournisseurRepository.findById(request.getFournisseurId())
+                .orElseThrow(() -> new EntityNotFoundException("Fournisseur introuvable"));
 
-    Fournisseur fournisseur = fournisseurRepository.findById(request.getFournisseurId())
-            .orElseThrow(() -> new EntityNotFoundException("Fournisseur introuvable"));
+        BigDecimal taux = getTauxRequest(request);
 
-    CommandeAchat commande = new CommandeAchat();
-    commande.setPrefixe(
-            request.getPrefixe() != null && !request.getPrefixe().isBlank()
-                    ? request.getPrefixe().trim()
-                    : "CF"
-    );
-    commande.setDateCommande(request.getDateCommande() != null ? request.getDateCommande() : LocalDate.now());
-    commande.setDateLivraisonPrevue(request.getDateLivraisonPrevue());
-    commande.setFournisseur(fournisseur);
-    commande.setDevise(request.getDevise() != null ? request.getDevise() : Devise.USD);
-    commande.setTaux(request.getTaux() != null ? request.getTaux() : BigDecimal.ONE);
-    commande.setObservation(request.getObservation());
-    commande.setStatut(StatutCommandeFournisseur.BROUILLON);
+        CommandeAchat commande = new CommandeAchat();
+        commande.setPrefixe(
+                request.getPrefixe() != null && !request.getPrefixe().isBlank()
+                        ? request.getPrefixe().trim()
+                        : "CF"
+        );
 
-    List<CommandeAchatLigne> lignes = new ArrayList<>();
-    BigDecimal totalBrut = BigDecimal.ZERO;
-    BigDecimal totalRemise = BigDecimal.ZERO;
+        commande.setRefCommande("TMP-" + UUID.randomUUID());
+        commande.setDateCommande(request.getDateCommande() != null ? request.getDateCommande() : LocalDate.now());
+        commande.setDateLivraisonPrevue(request.getDateLivraisonPrevue());
+        commande.setFournisseur(fournisseur);
+        commande.setDevise(Devise.CDF);
+        commande.setTaux(taux);
+        commande.setTauxChangeUtilise(taux);
+        commande.setObservation(request.getObservation());
+        commande.setStatut(StatutCommandeFournisseur.BROUILLON);
 
-    for (CommandeAchatLigneRequest ligneRequest : request.getLignes()) {
-        Produit produit = produitRepository.findById(ligneRequest.getProduitId())
-                .orElseThrow(() -> new EntityNotFoundException(
-                        "Produit introuvable : " + ligneRequest.getProduitId()));
+        List<CommandeAchatLigne> lignes = new ArrayList<>();
 
-        BigDecimal quantite = nvl(ligneRequest.getQuantite());
-        BigDecimal prix = nvl(ligneRequest.getPrixUnitaire());
-        BigDecimal remise = nvl(ligneRequest.getRemise());
-
-        if (quantite.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new IllegalStateException("La quantité commandée doit être > 0.");
+        for (CommandeAchatLigneRequest ligneRequest : request.getLignes()) {
+            CommandeAchatLigne ligne = buildLigne(commande, ligneRequest, taux);
+            lignes.add(ligne);
         }
 
-        if (prix.compareTo(BigDecimal.ZERO) < 0) {
-            throw new IllegalStateException("Le prix unitaire ne peut pas être négatif.");
-        }
+        commande.setLignes(lignes);
+        recalculerTotaux(commande);
 
-        if (remise.compareTo(BigDecimal.ZERO) < 0) {
-            throw new IllegalStateException("La remise ne peut pas être négative.");
-        }
+        CommandeAchat saved = commandeAchatRepository.saveAndFlush(commande);
 
-        BigDecimal montantBrutLigne = scale2(quantite.multiply(prix));
-        BigDecimal montantNetLigne = scale2(montantBrutLigne.subtract(remise));
+        saved.setRefCommande(buildReference(saved));
+        saved = commandeAchatRepository.saveAndFlush(saved);
 
-        if (montantNetLigne.compareTo(BigDecimal.ZERO) < 0) {
-            throw new IllegalStateException("La remise ne peut pas être supérieure au montant de la ligne.");
-        }
-
-        CommandeAchatLigne ligne = new CommandeAchatLigne();
-        ligne.setCommandeAchat(commande);
-        ligne.setProduit(produit);
-        ligne.setQuantiteCommandee(scale3(quantite));
-        ligne.setPrixUnitaire(scale2(prix));
-        ligne.setRemise(scale2(remise));
-        ligne.setQuantiteRecue(BigDecimal.ZERO);
-        ligne.setMontantLigne(montantNetLigne);
-
-        totalBrut = totalBrut.add(montantBrutLigne);
-        totalRemise = totalRemise.add(remise);
-        lignes.add(ligne);
+        return mapToResponse(saved);
     }
 
-    commande.setLignes(lignes);
-    commande.setMontantBrut(scale2(totalBrut));
-    commande.setMontantRemise(scale2(totalRemise));
-    commande.setMontantTotal(scale2(totalBrut.subtract(totalRemise)));
+    // =========================================================
+    // UPDATE
+    // =========================================================
+    @Override
+    public CommandeAchatResponse update(Long id, CreateCommandeAchatRequest request) {
+        if (id == null) {
+            throw new IllegalStateException("L'identifiant de la commande est obligatoire.");
+        }
 
-    // Référence temporaire unique pour satisfaire NOT NULL + UNIQUE
-    commande.setRefCommande("TMP-" + UUID.randomUUID());
+        validateRequest(request);
 
-    // 1er save pour obtenir l'ID
-    CommandeAchat saved = commandeAchatRepository.saveAndFlush(commande);
+        CommandeAchat commande = commandeAchatRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Commande achat introuvable : " + id));
 
-    // Génération de la vraie référence métier
-    String ref = buildReference(saved);
-    saved.setRefCommande(ref);
+        if (commande.getStatut() == StatutCommandeFournisseur.RECEPTIONNEE) {
+            throw new IllegalStateException("Une commande réceptionnée ne peut pas être modifiée.");
+        }
 
-    // 2e save avec la vraie référence
-    saved = commandeAchatRepository.saveAndFlush(saved);
+        boolean hasReception = commande.getLignes() != null && commande.getLignes().stream()
+                .anyMatch(l -> nvl(l.getQuantiteRecue()).compareTo(BigDecimal.ZERO) > 0);
 
-    return mapToResponse(saved);
-}
-private String buildReference(CommandeAchat commande) {
-    if (commande.getId() == null) {
-        throw new IllegalStateException("Impossible de générer la référence : ID null");
+        if (hasReception) {
+            throw new IllegalStateException("Impossible de modifier une commande ayant déjà des quantités reçues.");
+        }
+
+        Fournisseur fournisseur = fournisseurRepository.findById(request.getFournisseurId())
+                .orElseThrow(() -> new EntityNotFoundException("Fournisseur introuvable"));
+
+        BigDecimal taux = getTauxRequest(request);
+
+        commande.setDateCommande(request.getDateCommande() != null ? request.getDateCommande() : commande.getDateCommande());
+        commande.setDateLivraisonPrevue(request.getDateLivraisonPrevue());
+        commande.setFournisseur(fournisseur);
+        commande.setDevise(Devise.CDF);
+        commande.setTaux(taux);
+        commande.setTauxChangeUtilise(taux);
+        commande.setObservation(request.getObservation());
+        commande.setPrefixe(request.getPrefixe() != null ? request.getPrefixe() : commande.getPrefixe());
+
+        commande.getLignes().clear();
+
+        for (CommandeAchatLigneRequest ligneRequest : request.getLignes()) {
+            CommandeAchatLigne ligne = buildLigne(commande, ligneRequest, taux);
+            commande.getLignes().add(ligne);
+        }
+
+        if (commande.getStatut() == null) {
+            commande.setStatut(StatutCommandeFournisseur.BROUILLON);
+        }
+
+        recalculerTotaux(commande);
+
+        CommandeAchat updated = commandeAchatRepository.save(commande);
+        return mapToResponse(updated);
     }
 
-    String prefixe = (commande.getPrefixe() != null && !commande.getPrefixe().isBlank())
-            ? commande.getPrefixe().trim()
-            : "CF";
-
-    return prefixe + "-" + String.format("%06d", commande.getId());
-}
-
-    @Transactional
+    // =========================================================
+    // VALIDATION
+    // =========================================================
     @Override
     public CommandeAchatResponse valider(Long id) {
         CommandeAchat commande = commandeAchatRepository.findById(id)
@@ -168,190 +167,247 @@ private String buildReference(CommandeAchat commande) {
         }
 
         if (commande.getStatut() == StatutCommandeFournisseur.RECEPTIONNEE) {
-            throw new IllegalStateException("Cette commande est annulée.");
+            throw new IllegalStateException("Cette commande est déjà réceptionnée.");
         }
 
         commande.setStatut(StatutCommandeFournisseur.VALIDEE);
-        commandeAchatRepository.save(commande);
-        return mapToResponse(commande);
+
+        CommandeAchat saved = commandeAchatRepository.save(commande);
+        return mapToResponse(saved);
     }
 
-    private BigDecimal nvl(BigDecimal value) {
-        return value == null ? BigDecimal.ZERO : value;
+    // =========================================================
+    // FIND ALL
+    // =========================================================
+    @Override
+    @Transactional(readOnly = true)
+    public List<CommandeAchatResponse> findAll() {
+        return commandeAchatRepository.findAll()
+                .stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
     }
 
-    private BigDecimal scale2(BigDecimal value) {
-        return value.setScale(2, RoundingMode.HALF_UP);
+    // =========================================================
+    // BUILD LIGNE
+    // =========================================================
+    private CommandeAchatLigne buildLigne(
+            CommandeAchat commande,
+            CommandeAchatLigneRequest ligneRequest,
+            BigDecimal tauxCommande
+    ) {
+        if (ligneRequest.getProduitId() == null) {
+            throw new IllegalStateException("Le produit est obligatoire pour chaque ligne.");
+        }
+
+        Produit produit = produitRepository.findById(ligneRequest.getProduitId())
+                .orElseThrow(() -> new EntityNotFoundException(
+                        "Produit introuvable : " + ligneRequest.getProduitId()
+                ));
+
+        BigDecimal quantite = nvl(ligneRequest.getQuantite());
+        BigDecimal prixUnitaireFc = nvl(ligneRequest.getPrixUnitaireFc());
+        BigDecimal prixUnitaire = nvl(ligneRequest.getPrixUnitaire());
+        BigDecimal remiseFc = nvl(ligneRequest.getRemise());
+
+        BigDecimal tauxLigne = nvl(ligneRequest.getTauxChangeUtilise());
+        if (tauxLigne.compareTo(BigDecimal.ZERO) <= 0) {
+            tauxLigne = tauxCommande;
+        }
+
+        if (prixUnitaireFc.compareTo(BigDecimal.ZERO) <= 0) {
+            prixUnitaireFc = prixUnitaire;
+        }
+
+        if (quantite.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalStateException("La quantité commandée doit être > 0.");
+        }
+
+        if (prixUnitaireFc.compareTo(BigDecimal.ZERO) < 0) {
+            throw new IllegalStateException("Le prix unitaire ne peut pas être négatif.");
+        }
+
+        if (remiseFc.compareTo(BigDecimal.ZERO) < 0) {
+            throw new IllegalStateException("La remise ne peut pas être négative.");
+        }
+
+        BigDecimal montantBrutFc = scale2(quantite.multiply(prixUnitaireFc));
+        BigDecimal montantLigneFc = scale2(montantBrutFc.subtract(remiseFc));
+
+        if (montantLigneFc.compareTo(BigDecimal.ZERO) < 0) {
+            throw new IllegalStateException("La remise ne peut pas être supérieure au montant de la ligne.");
+        }
+
+        BigDecimal prixUnitaireUsd = nvl(ligneRequest.getPrixUnitaireUsd());
+        if (prixUnitaireUsd.compareTo(BigDecimal.ZERO) <= 0 && tauxLigne.compareTo(BigDecimal.ZERO) > 0) {
+            prixUnitaireUsd = divUsd(prixUnitaireFc, tauxLigne);
+        }
+
+        BigDecimal montantLigneUsd = nvl(ligneRequest.getMontantLigneUsd());
+        if (montantLigneUsd.compareTo(BigDecimal.ZERO) <= 0 && tauxLigne.compareTo(BigDecimal.ZERO) > 0) {
+            montantLigneUsd = divUsd(montantLigneFc, tauxLigne);
+        }
+
+        CommandeAchatLigne ligne = new CommandeAchatLigne();
+        ligne.setCommandeAchat(commande);
+        ligne.setProduit(produit);
+
+        ligne.setQuantiteCommandee(scale3(quantite));
+        ligne.setPrixUnitaire(scale2(prixUnitaireFc));
+        ligne.setRemise(scale2(remiseFc));
+        ligne.setQuantiteRecue(BigDecimal.ZERO);
+
+        ligne.setTauxChangeUtilise(scale6(tauxLigne));
+
+        ligne.setPrixUnitaireFc(scale2(prixUnitaireFc));
+        ligne.setPrixUnitaireUsd(scale2(prixUnitaireUsd));
+
+        ligne.setMontantLigne(scale2(montantLigneFc));
+        ligne.setMontantLigneFc(scale2(montantLigneFc));
+        ligne.setMontantLigneUsd(scale2(montantLigneUsd));
+
+        return ligne;
     }
 
-    private BigDecimal scale3(BigDecimal value) {
-        return value.setScale(3, RoundingMode.HALF_UP);
+    // =========================================================
+    // RECALCUL TOTAUX
+    // =========================================================
+    private void recalculerTotaux(CommandeAchat commande) {
+        BigDecimal totalBrutFc = BigDecimal.ZERO;
+        BigDecimal totalRemiseFc = BigDecimal.ZERO;
+        BigDecimal totalFc = BigDecimal.ZERO;
+        BigDecimal totalUsd = BigDecimal.ZERO;
+
+        for (CommandeAchatLigne ligne : commande.getLignes()) {
+            BigDecimal quantite = nvl(ligne.getQuantiteCommandee());
+            BigDecimal prixFc = nvl(ligne.getPrixUnitaireFc());
+            BigDecimal remiseFc = nvl(ligne.getRemise());
+            BigDecimal taux = nvl(ligne.getTauxChangeUtilise());
+
+            BigDecimal brutFc = scale2(quantite.multiply(prixFc));
+            BigDecimal netFc = scale2(brutFc.subtract(remiseFc));
+
+            if (netFc.compareTo(BigDecimal.ZERO) < 0) {
+                netFc = BigDecimal.ZERO;
+            }
+
+            BigDecimal prixUsd = BigDecimal.ZERO;
+            BigDecimal netUsd = BigDecimal.ZERO;
+
+            if (taux.compareTo(BigDecimal.ZERO) > 0) {
+                prixUsd = divUsd(prixFc, taux);
+                netUsd = divUsd(netFc, taux);
+            }
+
+            ligne.setPrixUnitaire(scale2(prixFc));
+            ligne.setPrixUnitaireFc(scale2(prixFc));
+            ligne.setPrixUnitaireUsd(scale2(prixUsd));
+            ligne.setMontantLigne(scale2(netFc));
+            ligne.setMontantLigneFc(scale2(netFc));
+            ligne.setMontantLigneUsd(scale2(netUsd));
+
+            totalBrutFc = totalBrutFc.add(brutFc);
+            totalRemiseFc = totalRemiseFc.add(remiseFc);
+            totalFc = totalFc.add(netFc);
+            totalUsd = totalUsd.add(netUsd);
+        }
+
+        commande.setDevise(Devise.CDF);
+
+        if (commande.getTauxChangeUtilise() == null || commande.getTauxChangeUtilise().compareTo(BigDecimal.ZERO) <= 0) {
+            commande.setTauxChangeUtilise(nvl(commande.getTaux()));
+        }
+
+        commande.setMontantBrut(scale2(totalBrutFc));
+        commande.setMontantRemise(scale2(totalRemiseFc));
+        commande.setMontantTotal(scale2(totalFc));
+
+        commande.setMontantTotalFc(scale2(totalFc));
+        commande.setMontantTotalUsd(scale2(totalUsd));
     }
 
+    // =========================================================
+    // MAPPING RESPONSE
+    // =========================================================
     private CommandeAchatResponse mapToResponse(CommandeAchat commande) {
         CommandeAchatResponse response = new CommandeAchatResponse();
+
         response.setId(commande.getId());
         response.setRefCommande(commande.getRefCommande());
         response.setDateCommande(commande.getDateCommande());
         response.setDateLivraisonPrevue(commande.getDateLivraisonPrevue());
+        response.setDatePrevue(commande.getDateLivraisonPrevue());
+
         response.setDevise(commande.getDevise());
         response.setTaux(commande.getTaux());
+        response.setTauxChangeUtilise(commande.getTauxChangeUtilise());
+
         response.setObservation(commande.getObservation());
         response.setStatut(commande.getStatut());
-        response.setMontantTotal(commande.getMontantTotal());
+
         response.setMontantBrut(commande.getMontantBrut());
         response.setMontantRemise(commande.getMontantRemise());
+        response.setMontantTotal(commande.getMontantTotal());
+
+        response.setMontantTotalFc(commande.getMontantTotalFc());
+        response.setMontantTotalUsd(commande.getMontantTotalUsd());
+
         response.setPrefixe(commande.getPrefixe());
-        response.setDatePrevue(commande.getDateLivraisonPrevue());
-        Principal principal = null; // Récupérer le principal de la sécurité contextuelle
+
+        Principal principal = null;
         String username = principal != null ? principal.getName() : "Anonyme";
         response.setUser(username);
-     
-
-
 
         if (commande.getFournisseur() != null) {
             response.setFournisseurId(commande.getFournisseur().getId());
             response.setFournisseurNom(commande.getFournisseur().getNom());
         }
 
-        List<CommandeAchatLigneResponse> ligneResponses = commande.getLignes().stream().map(ligne -> {
-            CommandeAchatLigneResponse lr = new CommandeAchatLigneResponse();
-            lr.setId(ligne.getId());
-            lr.setProduitId(ligne.getProduit() != null ? ligne.getProduit().getId() : null);
-            lr.setProduitNom(ligne.getProduit() != null ? ligne.getProduit().getNom() : null);
-            lr.setCodeBarres(ligne.getProduit() != null ? ligne.getProduit().getCodeBarres() : null);
-            lr.setQuantiteCommandee(ligne.getQuantiteCommandee());
-            lr.setQuantiteRecue(ligne.getQuantiteRecue());
-            lr.setPrixUnitaire(ligne.getPrixUnitaire());
-            lr.setMontantLigne(ligne.getMontantLigne());
-            return lr;
-        }).toList();
+        List<CommandeAchatLigneResponse> ligneResponses = commande.getLignes()
+                .stream()
+                .map(this::mapLigneToResponse)
+                .toList();
 
         response.setLignes(ligneResponses);
 
         return response;
     }
 
-    @Transactional
-    @Override
-    public CommandeAchatResponse update(Long id, CreateCommandeAchatRequest request) {
-        if (id == null) {
-            throw new IllegalStateException("L'identifiant de la commande est obligatoire.");
+    private CommandeAchatLigneResponse mapLigneToResponse(CommandeAchatLigne ligne) {
+        CommandeAchatLigneResponse lr = new CommandeAchatLigneResponse();
+
+        lr.setId(ligne.getId());
+
+        if (ligne.getProduit() != null) {
+            lr.setProduitId(ligne.getProduit().getId());
+            lr.setProduitNom(ligne.getProduit().getNom());
+            lr.setCodeBarres(ligne.getProduit().getCodeBarres());
         }
 
-        if (request.getFournisseurId() == null) {
-            throw new IllegalStateException("Le fournisseur est obligatoire.");
-        }
+        lr.setQuantiteCommandee(ligne.getQuantiteCommandee());
+        lr.setQuantite(ligne.getQuantiteCommandee());
+        lr.setQuantiteRecue(ligne.getQuantiteRecue());
 
-        if (request.getLignes() == null || request.getLignes().isEmpty()) {
-            throw new IllegalStateException("La commande doit contenir au moins une ligne.");
-        }
+        lr.setPrixUnitaire(ligne.getPrixUnitaire());
+        lr.setRemise(ligne.getRemise());
+        lr.setMontantLigne(ligne.getMontantLigne());
 
-        CommandeAchat commande = commandeAchatRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException("Commande achat introuvable : " + id));
+        lr.setTauxChangeUtilise(ligne.getTauxChangeUtilise());
 
-        // règle métier éventuelle
-        if (commande.getStatut() == StatutCommandeFournisseur.RECEPTIONNEE) {
-            throw new IllegalStateException("Une commande clôturée ne peut pas être modifiée.");
-        }
+        lr.setPrixUnitaireFc(ligne.getPrixUnitaireFc());
+        lr.setPrixUnitaireUsd(ligne.getPrixUnitaireUsd());
 
-        Fournisseur fournisseur = fournisseurRepository.findById(request.getFournisseurId())
-                .orElseThrow(() -> new EntityNotFoundException("Fournisseur introuvable"));
+        lr.setMontantLigneFc(ligne.getMontantLigneFc());
+        lr.setMontantLigneUsd(ligne.getMontantLigneUsd());
 
-        commande.setDateCommande(
-                request.getDateCommande() != null ? request.getDateCommande() : commande.getDateCommande());
-        commande.setDateLivraisonPrevue(request.getDateLivraisonPrevue());
-        commande.setFournisseur(fournisseur);
-        commande.setDevise(request.getDevise() != null ? request.getDevise() : Devise.USD);
-        commande.setTaux(request.getTaux() != null ? request.getTaux() : BigDecimal.ONE);
-        commande.setObservation(request.getObservation());
-        commande.setPrefixe(request.getPrefixe() != null ? request.getPrefixe() : commande.getPrefixe());
-
-      
-        // On protège les commandes déjà réceptionnées partiellement/totalement
-        boolean hasReception = commande.getLignes() != null && commande.getLignes().stream()
-                .anyMatch(l -> nvl(l.getQuantiteRecue()).compareTo(BigDecimal.ZERO) > 0);
-
-        if (hasReception) {
-            throw new IllegalStateException("Impossible de modifier une commande ayant déjà des quantités reçues.");
-        }
-
-        List<CommandeAchatLigne> nouvellesLignes = new ArrayList<>();
-        BigDecimal totalBrut = BigDecimal.ZERO;
-        BigDecimal totalRemise = BigDecimal.ZERO;
-
-        for (CommandeAchatLigneRequest ligneRequest : request.getLignes()) {
-            if (ligneRequest.getProduitId() == null) {
-                throw new IllegalStateException("Le produit est obligatoire pour chaque ligne.");
-            }
-
-            Produit produit = produitRepository.findById(ligneRequest.getProduitId())
-                    .orElseThrow(() -> new EntityNotFoundException(
-                            "Produit introuvable : " + ligneRequest.getProduitId()));
-
-            BigDecimal quantite = nvl(ligneRequest.getQuantite());
-            BigDecimal prix = nvl(ligneRequest.getPrixUnitaire());
-            BigDecimal remise = nvl(ligneRequest.getRemise());
-
-            if (quantite.compareTo(BigDecimal.ZERO) <= 0) {
-                throw new IllegalStateException("La quantité commandée doit être > 0.");
-            }
-
-            if (prix.compareTo(BigDecimal.ZERO) < 0) {
-                throw new IllegalStateException("Le prix unitaire ne peut pas être négatif.");
-            }
-
-            if (remise.compareTo(BigDecimal.ZERO) < 0) {
-                throw new IllegalStateException("La remise ne peut pas être négative.");
-            }
-
-            BigDecimal montantBrutLigne = scale2(quantite.multiply(prix));
-            BigDecimal montantNetLigne = scale2(montantBrutLigne.subtract(remise));
-
-            if (montantNetLigne.compareTo(BigDecimal.ZERO) < 0) {
-                throw new IllegalStateException("La remise ne peut pas être supérieure au montant de la ligne.");
-            }
-
-            CommandeAchatLigne ligne = new CommandeAchatLigne();
-            ligne.setCommandeAchat(commande);
-            ligne.setProduit(produit);
-            ligne.setQuantiteCommandee(scale3(quantite));
-            ligne.setPrixUnitaire(scale2(prix));
-            ligne.setRemise(scale2(remise));
-            ligne.setQuantiteRecue(BigDecimal.ZERO);
-            ligne.setMontantLigne(montantNetLigne);
-
-            totalBrut = totalBrut.add(montantBrutLigne);
-            totalRemise = totalRemise.add(remise);
-            nouvellesLignes.add(ligne);
-        }
-
-        // Remplacement complet des lignes
-        commande.getLignes().clear();
-        commande.getLignes().addAll(nouvellesLignes);
-
-        commande.setMontantBrut(scale2(totalBrut));
-        commande.setMontantRemise(scale2(totalRemise));
-        commande.setMontantTotal(scale2(totalBrut.subtract(totalRemise)));
-
-        // si aucune position fournie, on garde BROUILLON ou l'état existant
-        if (commande.getStatut() == null) {
-            commande.setStatut(StatutCommandeFournisseur.BROUILLON);
-        }
-
-        CommandeAchat updated = commandeAchatRepository.save(commande);
-        return mapToResponse(updated);
-    }
-@Override
-    public List<CommandeAchatResponse> findAll() {
-        // TODO Auto-generated method stub
-        return commandeAchatRepository.findAll().stream()
-                .map(this::mapToResponse)
-                .collect(Collectors.toList());
+        return lr;
     }
 
+    // =========================================================
+    // DASHBOARD
+    // =========================================================
     @Override
+    @Transactional(readOnly = true)
     public CommandeDashboardResponse getDashboard() {
         List<CommandeAchat> commandes = commandeAchatRepository.findAll();
         CommandeDashboardResponse response = new CommandeDashboardResponse();
@@ -370,7 +426,7 @@ private String buildReference(CommandeAchat commande) {
         long totalAnnule = 0;
         long totalRetard = 0;
 
-        BigDecimal montantTotal = BigDecimal.ZERO;
+        BigDecimal montantTotalFc = BigDecimal.ZERO;
         BigDecimal quantiteTotaleCommandee = BigDecimal.ZERO;
         BigDecimal quantiteTotaleRecue = BigDecimal.ZERO;
 
@@ -388,8 +444,12 @@ private String buildReference(CommandeAchat commande) {
             if ("LIVREE".equals(statut) || "CLOTUREE".equals(statut)) totalLivre++;
             if ("ANNULEE".equals(statut) || "ANNULE".equals(statut)) totalAnnule++;
 
-            BigDecimal montantCommande = nvl(cmd.getMontantTotal());
-            montantTotal = montantTotal.add(montantCommande);
+            BigDecimal montantCommandeFc = nvl(cmd.getMontantTotalFc());
+            if (montantCommandeFc.compareTo(BigDecimal.ZERO) == 0) {
+                montantCommandeFc = nvl(cmd.getMontantTotal());
+            }
+
+            montantTotalFc = montantTotalFc.add(montantCommandeFc);
 
             BigDecimal qteCmd = BigDecimal.ZERO;
             BigDecimal qteRecue = BigDecimal.ZERO;
@@ -426,17 +486,14 @@ private String buildReference(CommandeAchat commande) {
             }
 
             f.setTotalCommandes(f.getTotalCommandes() + 1);
-            f.setMontantTotal(f.getMontantTotal().add(montantCommande));
+            f.setMontantTotal(f.getMontantTotal().add(montantCommandeFc));
         }
 
-        BigDecimal montantMoyen = BigDecimal.ZERO;
-        if (!commandes.isEmpty()) {
-            montantMoyen = montantTotal.divide(
-                    BigDecimal.valueOf(commandes.size()),
-                    2,
-                    RoundingMode.HALF_UP
-            );
-        }
+        BigDecimal montantMoyenFc = montantTotalFc.divide(
+                BigDecimal.valueOf(commandes.size()),
+                2,
+                RoundingMode.HALF_UP
+        );
 
         BigDecimal tauxReception = BigDecimal.ZERO;
         if (quantiteTotaleCommandee.compareTo(BigDecimal.ZERO) > 0) {
@@ -446,14 +503,18 @@ private String buildReference(CommandeAchat commande) {
         }
 
         List<CommandeDashboardItemDto> commandesRecentes = items.stream()
-                .sorted(Comparator.comparing(CommandeDashboardItemDto::getDateCommande,
-                        Comparator.nullsLast(Comparator.reverseOrder())))
+                .sorted(Comparator.comparing(
+                        CommandeDashboardItemDto::getDateCommande,
+                        Comparator.nullsLast(Comparator.reverseOrder())
+                ))
                 .limit(8)
                 .collect(Collectors.toList());
 
         List<CommandeDashboardItemDto> commandesEnRetard = retards.stream()
-                .sorted(Comparator.comparing(CommandeDashboardItemDto::getJoursRetard,
-                        Comparator.nullsLast(Comparator.reverseOrder())))
+                .sorted(Comparator.comparing(
+                        CommandeDashboardItemDto::getJoursRetard,
+                        Comparator.nullsLast(Comparator.reverseOrder())
+                ))
                 .limit(6)
                 .collect(Collectors.toList());
 
@@ -478,8 +539,8 @@ private String buildReference(CommandeAchat commande) {
         response.setTotalAnnule(totalAnnule);
         response.setTotalRetard(totalRetard);
 
-        response.setMontantTotal(montantTotal);
-        response.setMontantMoyen(montantMoyen);
+        response.setMontantTotal(montantTotalFc);
+        response.setMontantMoyen(montantMoyenFc);
 
         response.setQuantiteTotaleCommandee(quantiteTotaleCommandee);
         response.setQuantiteTotaleRecue(quantiteTotaleRecue);
@@ -493,11 +554,18 @@ private String buildReference(CommandeAchat commande) {
         return response;
     }
 
-    private CommandeDashboardItemDto mapToItem(CommandeAchat cmd,
-                                               BigDecimal quantiteTotale,
-                                               BigDecimal quantiteRecue,
-                                               LocalDate today) {
+    private CommandeDashboardItemDto mapToItem(
+            CommandeAchat cmd,
+            BigDecimal quantiteTotale,
+            BigDecimal quantiteRecue,
+            LocalDate today
+    ) {
         CommandeDashboardItemDto dto = new CommandeDashboardItemDto();
+
+        BigDecimal montantFc = nvl(cmd.getMontantTotalFc());
+        if (montantFc.compareTo(BigDecimal.ZERO) == 0) {
+            montantFc = nvl(cmd.getMontantTotal());
+        }
 
         dto.setId(cmd.getId());
         dto.setRefCommande(cmd.getRefCommande());
@@ -505,8 +573,8 @@ private String buildReference(CommandeAchat commande) {
         dto.setDateCommande(cmd.getDateCommande());
         dto.setDatePrevue(cmd.getDateLivraisonPrevue());
         dto.setStatut(cmd.getStatut() != null ? cmd.getStatut().name() : null);
-        dto.setMontantTotal(nvl(cmd.getMontantTotal()));
-        dto.setDevise(cmd.getDevise() != null ? cmd.getDevise().name() : null);
+        dto.setMontantTotal(montantFc);
+        dto.setDevise(Devise.CDF.name());
 
         dto.setQuantiteTotale(quantiteTotale);
         dto.setQuantiteRecue(quantiteRecue);
@@ -517,10 +585,9 @@ private String buildReference(CommandeAchat commande) {
                     .multiply(BigDecimal.valueOf(100))
                     .divide(quantiteTotale, 2, RoundingMode.HALF_UP);
         }
-        dto.setProgression(progression);
 
-        long joursRetard = computeJoursRetard(cmd, today);
-        dto.setJoursRetard(joursRetard);
+        dto.setProgression(progression);
+        dto.setJoursRetard(computeJoursRetard(cmd, today));
 
         return dto;
     }
@@ -529,7 +596,11 @@ private String buildReference(CommandeAchat commande) {
         if (cmd.getDateLivraisonPrevue() == null) return 0;
 
         String statut = safeUpper(cmd.getStatut() != null ? cmd.getStatut().name() : null);
-        if ("LIVREE".equals(statut) || "CLOTUREE".equals(statut) || "ANNULEE".equals(statut) || "ANNULE".equals(statut)) {
+
+        if ("LIVREE".equals(statut)
+                || "CLOTUREE".equals(statut)
+                || "ANNULEE".equals(statut)
+                || "ANNULE".equals(statut)) {
             return 0;
         }
 
@@ -540,11 +611,13 @@ private String buildReference(CommandeAchat commande) {
         return 0;
     }
 
-    private List<String> buildAlertes(long totalRetard,
-                                      long totalBrouillon,
-                                      long totalPartiel,
-                                      BigDecimal tauxReception,
-                                      int totalCommandes) {
+    private List<String> buildAlertes(
+            long totalRetard,
+            long totalBrouillon,
+            long totalPartiel,
+            BigDecimal tauxReception,
+            int totalCommandes
+    ) {
         List<String> list = new ArrayList<>();
 
         if (totalCommandes == 0) {
@@ -575,7 +648,73 @@ private String buildReference(CommandeAchat commande) {
         return list;
     }
 
-   
+    // =========================================================
+    // UTILS
+    // =========================================================
+    private void validateRequest(CreateCommandeAchatRequest request) {
+        if (request == null) {
+            throw new IllegalStateException("La requête est obligatoire.");
+        }
+
+        if (request.getFournisseurId() == null) {
+            throw new IllegalStateException("Le fournisseur est obligatoire.");
+        }
+
+        if (request.getLignes() == null || request.getLignes().isEmpty()) {
+            throw new IllegalStateException("La commande doit contenir au moins une ligne.");
+        }
+    }
+
+    private BigDecimal getTauxRequest(CreateCommandeAchatRequest request) {
+        BigDecimal taux = nvl(request.getTauxChangeUtilise());
+
+        if (taux.compareTo(BigDecimal.ZERO) <= 0) {
+            taux = nvl(request.getTaux());
+        }
+
+        if (taux.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalStateException("Le taux de change est obligatoire.");
+        }
+
+        return scale6(taux);
+    }
+
+    private BigDecimal nvl(BigDecimal value) {
+        return value == null ? BigDecimal.ZERO : value;
+    }
+
+    private BigDecimal scale2(BigDecimal value) {
+        return nvl(value).setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private BigDecimal scale3(BigDecimal value) {
+        return nvl(value).setScale(3, RoundingMode.HALF_UP);
+    }
+
+    private BigDecimal scale6(BigDecimal value) {
+        return nvl(value).setScale(6, RoundingMode.HALF_UP);
+    }
+
+    private BigDecimal divUsd(BigDecimal montantFc, BigDecimal taux) {
+        if (taux == null || taux.compareTo(BigDecimal.ZERO) <= 0) {
+            return BigDecimal.ZERO;
+        }
+
+        return nvl(montantFc).divide(taux, 2, RoundingMode.HALF_UP);
+    }
+
+    private String buildReference(CommandeAchat commande) {
+        if (commande.getId() == null) {
+            throw new IllegalStateException("Impossible de générer la référence : ID null");
+        }
+
+        String prefixe = commande.getPrefixe() != null && !commande.getPrefixe().isBlank()
+                ? commande.getPrefixe().trim()
+                : "CF";
+
+        return prefixe + "-" + String.format("%06d", commande.getId());
+    }
+
     private String safeUpper(String value) {
         return value == null ? "" : value.toUpperCase(Locale.ROOT);
     }

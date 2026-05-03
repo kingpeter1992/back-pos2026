@@ -20,7 +20,11 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Entity
-@Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class ReceptionAchatLigne {
 
     @Id
@@ -71,21 +75,78 @@ public class ReceptionAchatLigne {
     private BigDecimal nouveauPmp;
     @Column(length = 100)
     private String numeroLot;
+    @Column(precision = 18, scale = 6)
+    private BigDecimal tauxChangeUtilise;
+
+    @Column(precision = 18, scale = 2)
+    private BigDecimal prixAchatUnitaireFc;
+
+    @Column(precision = 18, scale = 2)
+    private BigDecimal prixAchatUnitaireUsd;
+
+    @Column(precision = 18, scale = 2)
+    private BigDecimal montantLigneFc;
+
+    @Column(precision = 18, scale = 2)
+    private BigDecimal montantLigneUsd;
+
+    @Column(precision = 18, scale = 2)
+private BigDecimal partFraisUsd;
+
+@Column(precision = 18, scale = 6)
+private BigDecimal fraisUnitaireUsd;
+
+@Column(precision = 18, scale = 6)
+private BigDecimal coutUnitaireFinalUsd;
+
+@Column(precision = 18, scale = 2)
+private BigDecimal montantFinalLigneFc;
+
+@Column(precision = 18, scale = 2)
+private BigDecimal montantFinalLigneUsd;
+
+    @Column(columnDefinition = "TEXT")
+    private String commentaire;
 
     @PrePersist
     @PreUpdate
     public void preSave() {
-        if (quantiteRecue == null) quantiteRecue = BigDecimal.ZERO;
-        if (prixAchatUnitaire == null) prixAchatUnitaire = BigDecimal.ZERO;
-        if (partFrais == null) partFrais = BigDecimal.ZERO;
-        if (fraisUnitaire == null) fraisUnitaire = BigDecimal.ZERO;
-        if (coutUnitaireFinal == null) coutUnitaireFinal = BigDecimal.ZERO;
-        if (ancienStock == null) ancienStock = BigDecimal.ZERO;
-        if (ancienPmp == null) ancienPmp = BigDecimal.ZERO;
-        if (nouveauStock == null) nouveauStock = BigDecimal.ZERO;
-        if (nouveauPmp == null) nouveauPmp = BigDecimal.ZERO;
+        if (quantiteRecue == null)
+            quantiteRecue = BigDecimal.ZERO;
+        if (prixAchatUnitaire == null)
+            prixAchatUnitaire = BigDecimal.ZERO;
+        if (partFrais == null)
+            partFrais = BigDecimal.ZERO;
+        if (fraisUnitaire == null)
+            fraisUnitaire = BigDecimal.ZERO;
+        if (coutUnitaireFinal == null)
+            coutUnitaireFinal = BigDecimal.ZERO;
+        if (ancienStock == null)
+            ancienStock = BigDecimal.ZERO;
+        if (ancienPmp == null)
+            ancienPmp = BigDecimal.ZERO;
+        if (nouveauStock == null)
+            nouveauStock = BigDecimal.ZERO;
+        if (nouveauPmp == null)
+            nouveauPmp = BigDecimal.ZERO;
+        if (tauxChangeUtilise == null)
+            tauxChangeUtilise = BigDecimal.ZERO;
+        if (prixAchatUnitaireFc == null)
+            prixAchatUnitaireFc = prixAchatUnitaire;
+        if (prixAchatUnitaireUsd == null)
+            prixAchatUnitaireUsd = BigDecimal.ZERO;
+        if (montantLigneFc == null)
+            montantLigneFc = montantAchat;
+        if (montantLigneUsd == null)
+            montantLigneUsd = BigDecimal.ZERO;
+        if (partFraisUsd == null) partFraisUsd = BigDecimal.ZERO;
+if (fraisUnitaireUsd == null) fraisUnitaireUsd = BigDecimal.ZERO;
+if (coutUnitaireFinalUsd == null) coutUnitaireFinalUsd = BigDecimal.ZERO;
+if (montantFinalLigneFc == null) montantFinalLigneFc = montantFinalLigne;
+if (montantFinalLigneUsd == null) montantFinalLigneUsd = BigDecimal.ZERO;
+        
 
         montantAchat = quantiteRecue.multiply(prixAchatUnitaire);
         montantFinalLigne = quantiteRecue.multiply(coutUnitaireFinal);
-    }   
+    }
 }
