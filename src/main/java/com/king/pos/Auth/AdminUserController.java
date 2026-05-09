@@ -43,7 +43,6 @@ public List<UserDto> getAllUsers() {
     }
 
  @PutMapping("/{id}/roles")
-@PreAuthorize("hasRole('ADMIN')")
 public UserDto assignRoles(@PathVariable Long id, @RequestBody Set<String> roles) {
     return userService.assignRoles(id, roles);
 }

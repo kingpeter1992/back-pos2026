@@ -23,5 +23,12 @@ public class LigneVenteRequest {
     private BigDecimal remiseUSD;
     private BigDecimal totalUSD;
         private BigDecimal tauxChange;
+          private BigDecimal pmpCDF;
+    private BigDecimal totalPmpCDF;
+    private BigDecimal margeCDF;
+
+        private BigDecimal pmpUSD;
+    private BigDecimal totalPmpUSD;
+    private BigDecimal margeUSD;
 
 }

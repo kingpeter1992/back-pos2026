@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.*;
 import com.king.pos.Dto.InventaireBordereauLigneUpdateRequest;
 import com.king.pos.Dto.InventaireCreateRequest;
 import com.king.pos.Dto.InventaireGenererBordereauxRequest;
+import com.king.pos.Dto.InventaireResultatResponse;
 import com.king.pos.Dto.Response.InventaireArticleResponse;
 import com.king.pos.Dto.Response.InventaireBordereauLigneResponse;
 import com.king.pos.Dto.Response.InventaireBordereauResponse;
@@ -18,6 +19,8 @@ import com.king.pos.ImplementServices.InventaireService;
 import com.king.pos.ImplementServices.InventaireValidationService;
 import com.king.pos.ImplementServices.InventaireVarianceService;
 import com.king.pos.ImplementServices.InventaireBordereauService;
+import com.king.pos.ImplementServices.InventaireResultatService;
+
 import java.util.List;
 
 @RestController
@@ -30,6 +33,7 @@ public class InventaireController {
     private final InventaireBordereauService bordereauService;
     private final InventaireVarianceService varianceService;
     private final InventaireValidationService validationService;
+    private final InventaireResultatService  inventaireResultatService;
 
     @PostMapping
     public InventaireResponse create(@RequestBody InventaireCreateRequest request) {
@@ -128,4 +132,21 @@ public class InventaireController {
         validationService.annulerInventaire(inventaireId, user, commentaire);
     }
 
+
+    @GetMapping("/{inventaireId}/resultat")
+public ResponseEntity<InventaireResultatResponse> getResultatInventaire(
+        @PathVariable Long inventaireId
+) {
+    return ResponseEntity.ok(inventaireResultatService.getResultat(inventaireId));
+}
+
+@GetMapping("/resultats")
+public ResponseEntity<List<InventaireResultatResponse>> getResultatsInventaires(
+        @RequestParam(required = false) String dateFrom,
+        @RequestParam(required = false) String dateTo
+) {
+    return ResponseEntity.ok(
+        inventaireResultatService.getResultats(dateFrom, dateTo)
+    );
+}
 }

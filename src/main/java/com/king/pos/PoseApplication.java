@@ -60,6 +60,8 @@ public class PoseApplication {
             createRoleIfNotExists(roleRepository, ERole.ROLE_CAISSIER);
             createRoleIfNotExists(roleRepository, ERole.ROLE_RESPONSABLE_PERSONNEL);
             createRoleIfNotExists(roleRepository, ERole.ROLE_USER);
+            createRoleIfNotExists(roleRepository, ERole.ROLE_OPERATOR);
+            
 
             // =========================
             // 1) ADMIN

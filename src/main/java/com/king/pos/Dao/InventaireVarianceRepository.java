@@ -36,4 +36,8 @@ public interface InventaireVarianceRepository extends JpaRepository<InventaireVa
     @Modifying
     @Transactional
     void deleteByBordereauId(Long bordereauId);
+
+
+
+    
 }

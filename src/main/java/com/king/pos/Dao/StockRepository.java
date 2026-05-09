@@ -2,6 +2,7 @@ package com.king.pos.Dao;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import com.king.pos.Dto.Response.StockAlerteView;
 import com.king.pos.Entitys.Depot;
@@ -99,5 +100,13 @@ List<StockAlerteView> findAlertesStock();
 
    List<StockProduit> findByDepotId(Long id);
 
+
+
+@Query("""
+    select coalesce(sum(s.valeurStock), 0)
+    from StockProduit s
+    where s.depot.id = :depotId
+""")
+BigDecimal calculerValeurStockCDF(@Param("depotId") Long depotId);
 }
 

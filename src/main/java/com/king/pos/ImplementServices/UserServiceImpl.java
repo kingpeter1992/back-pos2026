@@ -75,11 +75,17 @@ public UserDto assignRoles(Long userId, Set<String> roleNames) {
             .orElseThrow(() -> new RuntimeException("Utilisateur introuvable"));
 
     Set<Role> newRoles = roleNames.stream()
-            .map(ERole::valueOf)
+            .map(role -> {
+                try {
+                    return ERole.valueOf(role);
+                } catch (IllegalArgumentException e) {
+                    throw new RuntimeException("Rôle invalide : " + role);
+                }
+            })
             .map(this::getRoleOrThrow)
             .collect(Collectors.toSet());
 
-    user.setRoles(newRoles); // ✅ évite clear/addAll
+    user.setRoles(newRoles);
 
     User saved = userRepository.save(user);
 
@@ -91,5 +97,4 @@ public UserDto assignRoles(Long userId, Set<String> roleNames) {
             saved.getRoles().stream().map(Role::getName).toList()
     );
 }
-
 }

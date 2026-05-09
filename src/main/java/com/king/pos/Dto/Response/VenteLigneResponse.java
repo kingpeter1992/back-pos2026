@@ -24,6 +24,14 @@ public class VenteLigneResponse {
     private BigDecimal remiseCDF;
     private BigDecimal totalCDF;
 
+              private BigDecimal pmpCDF;
+    private BigDecimal totalPmpCDF;
+    private BigDecimal margeCDF;
+
+        private BigDecimal pmpUSD;
+    private BigDecimal totalPmpUSD;
+    private BigDecimal margeUSD;
+
     private BigDecimal prixUSD;
     private BigDecimal remiseUSD;
     private BigDecimal totalUSD;

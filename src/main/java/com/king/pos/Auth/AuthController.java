@@ -128,13 +128,8 @@ public class AuthController {
 
         String token = request.get("token");
         String newPassword = request.get("password");
-        System.err.println("Received token  front : " + token);
-
         User user = userRepository.findByToken(token)
                 .orElseThrow(() -> new RuntimeException("Token invalide"));
-
-      System.err.println("Received token from data : " + user.getResetToken());
-
         if (user.getTokenExpiration().isBefore(LocalDateTime.now())) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Token expiré");
         }

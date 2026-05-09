@@ -22,4 +22,20 @@ public class RapportVenteKpiResponse {
     private BigDecimal margeCDF;
 
     private BigDecimal pourcentageMarge;
+
+
+private BigDecimal totalNetUSD;
+private BigDecimal totalPmpUSD;
+private BigDecimal margeUSD;
+private BigDecimal prixBrutCDF;
+private BigDecimal prixBrutUSD;
+private BigDecimal prixNetCDF;
+private BigDecimal prixNetUSD;
+private BigDecimal remiseCDF;
+private BigDecimal remiseUSD;
+private BigDecimal pmpCDF;
+private BigDecimal pmpUSD;
+private BigDecimal totalTtcCDF;
+private BigDecimal totalTtcUSD;
+    
 }

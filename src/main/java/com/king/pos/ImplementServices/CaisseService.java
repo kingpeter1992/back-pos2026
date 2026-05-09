@@ -1,5 +1,6 @@
 package com.king.pos.ImplementServices;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -19,9 +20,11 @@ import com.king.pos.Dto.OuvrirCaisseDTO;
 import com.king.pos.Dto.TransactionCaisseDto;
 import com.king.pos.Entitys.CaisseSession;
 import com.king.pos.Entitys.Client;
+import com.king.pos.Entitys.TauxChange;
 import com.king.pos.Entitys.TauxJournalier;
 import com.king.pos.Entitys.TransactionCaisse;
 import com.king.pos.Entitys.TypeTransaction;
+import com.king.pos.Handllers.BusinessException;
 import com.king.pos.enums.Devise;
 
 import jakarta.transaction.Transactional;
@@ -326,4 +329,5 @@ public class CaisseService {
     private double round2(double value) {
         return Math.round(value * 100.0) / 100.0;
     }
+
 }

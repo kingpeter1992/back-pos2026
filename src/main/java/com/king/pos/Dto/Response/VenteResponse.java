@@ -43,6 +43,14 @@ public class VenteResponse {
     private BigDecimal montantRecuUSD;
     private BigDecimal monnaieUSD;
 
+              private BigDecimal pmpCDF;
+    private BigDecimal totalPmpCDF;
+    private BigDecimal margeCDF;
+
+        private BigDecimal pmpUSD;
+    private BigDecimal totalPmpUSD;
+    private BigDecimal margeUSD;
+
     private Long tarifId;
     private Long depotId;
     private String statut;

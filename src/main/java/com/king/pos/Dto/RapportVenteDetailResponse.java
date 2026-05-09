@@ -74,4 +74,21 @@ public class RapportVenteDetailResponse {
 
     private BigDecimal tauxTva;
     private BigDecimal totalTtc;
+
+    private BigDecimal totalNetCDF;
+private BigDecimal totalNetUSD;
+private BigDecimal totalPmpCDF;
+private BigDecimal totalPmpUSD;
+private BigDecimal margeCDF;
+private BigDecimal margeUSD;
+private BigDecimal prixBrutCDF;
+private BigDecimal prixBrutUSD;
+private BigDecimal prixNetCDF;
+private BigDecimal prixNetUSD;
+private BigDecimal remiseCDF;
+private BigDecimal remiseUSD;
+private BigDecimal pmpCDF;
+private BigDecimal pmpUSD;
+private BigDecimal totalTtcCDF;
+private BigDecimal totalTtcUSD;
 }

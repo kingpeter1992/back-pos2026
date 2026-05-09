@@ -35,6 +35,17 @@ public class VenteRequest {
     private BigDecimal totalGeneralCDF;
     private BigDecimal montantRecuCDF;
     private BigDecimal monnaieCDF;
+    private BigDecimal pmpCDF;
+    private BigDecimal totalPmpCDF;
+    private BigDecimal margeCDF;
+
+        private BigDecimal pmpUSD;
+    private BigDecimal totalPmpUSD;
+    private BigDecimal margeUSD;
+
+    
+
+
 
     private BigDecimal sousTotalUSD;
     private BigDecimal totalRemiseUSD;

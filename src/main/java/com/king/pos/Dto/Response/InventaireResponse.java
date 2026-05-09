@@ -4,6 +4,7 @@ package com.king.pos.Dto.Response;
 import lombok.Builder;
 import lombok.Data;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
@@ -34,5 +35,15 @@ public class InventaireResponse {
     private Boolean bordereauxGeneres;
     private Boolean annule;
     private boolean tousBordereauxStockMisAJour;
+
+    private BigDecimal valeurStockInitialCDF;
+private BigDecimal valeurStockInitialUSD;
+private BigDecimal tauxChangeSnapshot;
+
+private BigDecimal valeurStockFinalCDF;
+private BigDecimal valeurStockFinalUSD;
+
+private BigDecimal ecartValeurCDF;
+private BigDecimal ecartValeurUSD;
     
 }

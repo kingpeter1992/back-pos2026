@@ -9,6 +9,7 @@ import java.time.LocalDateTime;
 import com.king.pos.enums.StatutInventaire;
 import com.king.pos.enums.TypeInventaire;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 
 @Entity
@@ -84,6 +85,30 @@ public class Inventaire {
 
     private LocalDateTime dateCreation;
     private LocalDateTime dateModification;
+
+
+    // Snapshot au démarrage
+@Column(precision = 18, scale = 2)
+private BigDecimal valeurStockInitialCDF;
+
+@Column(precision = 18, scale = 2)
+private BigDecimal valeurStockInitialUSD;
+
+@Column(precision = 18, scale = 6)
+private BigDecimal tauxChangeSnapshot;
+
+// Résultat après inventaire
+@Column(precision = 18, scale = 2)
+private BigDecimal valeurStockFinalCDF;
+
+@Column(precision = 18, scale = 2)
+private BigDecimal valeurStockFinalUSD;
+
+@Column(precision = 18, scale = 2)
+private BigDecimal ecartValeurCDF;
+
+@Column(precision = 18, scale = 2)
+private BigDecimal ecartValeurUSD;
 
     @PrePersist
     public void prePersist() {

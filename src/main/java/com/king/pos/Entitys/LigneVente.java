@@ -83,4 +83,12 @@ private BigDecimal remiseUSD;
 
 @Column(precision = 19, scale = 2)
 private BigDecimal totalUSD;
+
+  private BigDecimal pmpCDF;
+    private BigDecimal totalPmpCDF;
+    private BigDecimal margeCDF;
+
+        private BigDecimal pmpUSD;
+    private BigDecimal totalPmpUSD;
+    private BigDecimal margeUSD;
 }

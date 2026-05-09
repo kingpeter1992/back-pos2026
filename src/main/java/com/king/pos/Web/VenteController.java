@@ -26,31 +26,23 @@ public class VenteController {
     private final VenteServiceImpl venteService;
     private final StockService stockService;
 
-    
     @PostMapping
     public VenteResponse enregistrer(@RequestBody VenteRequest request) {
-
-            for (var ligne : request.getLignes()) {
-                    System.out.println("Ligne Vente - Produit ID: " + ligne.getProduitId() + ", Quantité: " + ligne.getQuantite() + ", Prix Unitaire: " + ligne.getPrixCDF() + ", Remise: " + ligne.getRemise() + ", Taux "+ ligne.getTauxChange() + ", Total: " + ligne.getTotal());
-            }
-        
         return venteService.enregistrerVente(request);
     }
 
-
     @PostMapping("/rapports")
-public RapportVentePosResponse getRapportVentes(
-        @RequestBody RapportVenteFilterRequest filter) {
-    return venteService.genererRapportVentes(filter);
-}
-@PostMapping("/{id}/annuler")
-public VenteResponse annulerVente(
-        @PathVariable Long id,
-        @RequestBody @Valid AnnulationVenteRequest request
-) {
-    return venteService.annulerVente(id, request);
-}
+    public RapportVentePosResponse getRapportVentes(
+            @RequestBody RapportVenteFilterRequest filter) {
+        return venteService.genererRapportVentes(filter);
+    }
 
+    @PostMapping("/{id}/annuler")
+    public VenteResponse annulerVente(
+            @PathVariable Long id,
+            @RequestBody @Valid AnnulationVenteRequest request) {
+        return venteService.annulerVente(id, request);
+    }
 
     @GetMapping
     public List<VenteResponse> getAllVente() {
